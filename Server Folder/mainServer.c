@@ -14,6 +14,7 @@ void checkS(int valueToCheck, const char *s, int unsuccessValue); // per socket
 /* Funzioni di avvio threads */
 void *gestisciRoom(void *arg);
 void *gestisciClient(void *arg);
+void *checkConnectionClient(void *arg); // controlla se il client ha chiuso la connessione mentre è in attesa
 
 // Puntatore globale per accesso alla lista di nicknames dei clients del server
 ListNicknames *listaNicknames;
@@ -548,6 +549,26 @@ void *gestisciClient(void *arg)
     return NULL;
 }
 
+/* Controlla se il client ha chiuso la connessione mentre è in attesa */
+void *checkConnectionClient(void *arg)
+{
+    Client *thisClient = (Client*)arg;
+    char buffer[2];
+    int checkerror = 0;
+    ssize_t bytesLetti = 0;
+
+    bytesLetti = safeRead(thisClient->socketfd, buffer, 2);
+    if(bytesLetti != 2 || strncmp(buffer, "OK", 2) != 0){
+        fprintf(stderr, "Errore checkConnectionClient %s\n", thisClient->address);
+        thisClient->isConnected = false;
+    }
+
+    /* Risveglia thread gestisciClient() associato a thisClient */
+    checkerror = pthread_cond_signal(thisClient->cond);
+    if(checkerror != 0) fprintf(stderr, "Errore condsignal checkConnectionClient %s\n", strerror(checkerror));
+
+    return NULL;
+}
 
 /* Funzione controllo errori */
 void checkT(int valueToCheck, const char *s, int successValue){
