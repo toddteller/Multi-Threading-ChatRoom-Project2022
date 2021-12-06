@@ -308,8 +308,10 @@ int initClient(Client *newClient, int socketClient, char *indirizzo, pthread_mut
     int checkerror; // variabile per controllo errori
 
     memset(newClient, 0, sizeof(Client));
-    newClient->socketfd = socketClient;
-    strncpy(newClient->address, indirizzo, 15);
+    newClient->socketfd = socketClient; // socket file descriptor client 
+    strncpy(newClient->address, indirizzo, 15); // indirizzo client
+    newClient->isConnected = true; // è connesso
+    newClient->isMatched = false; // non è matchato 
 
     // Inizializzazione mutex e cond client
     newClient->mutex = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
