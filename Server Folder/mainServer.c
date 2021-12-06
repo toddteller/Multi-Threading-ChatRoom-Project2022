@@ -1,4 +1,6 @@
 #include "server.h"
+#include <errno.h>
+#include <signal.h>
 
 #define MAX_NUM_ROOMS 5 // Il numero massimo di stanze del server
 #define MAX_CLIENTS_ROOM 6 // Il numero massimo di client per stanza
@@ -21,6 +23,12 @@ Room stanzeServer[MAX_NUM_ROOMS]; // Array di stanze del server globale
 int main()
 {
     int checkerror = 0; // variabile per controllo errori
+
+    /* Ignora segnale SIGPIPE */
+    if(signal(SIGPIPE, SIG_IGN) == SIG_ERR){
+        perror("Errore signal(SIGPIPE, SIG_IGN)");
+        exit(EXIT_FAILURE);
+    }
 
     /* Definizione nome stanze server */
     char *roomName[MAX_NUM_ROOMS]; // array di stringhe
