@@ -23,7 +23,7 @@ ListNicknames *listaNicknames;
 Room stanzeServer[MAX_NUM_ROOMS]; // Array di stanze del server globale
 
 
-int main()
+int main(void)
 {
     int checkerror = 0; // variabile per controllo errori
 
@@ -473,8 +473,8 @@ void *gestisciClient(void *arg)
             if(checkerror != 0) fprintf(stderr, "Errore mutexunlock stanzaServer %s\n", strerror(checkerror));
 
             /* Il server invia un feedback al client "OK" oppure "FU" */
-            if(!isFull){
-                /* Il server invia un feedback al client "OK" */
+            if(!isFull){ 
+                /* Il server invia un feedback al client "OK": la stanza non è piena  */
                 bytesScritti = safeWrite(thisClient->socketfd, "OK", 2);
                 if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
                     fprintf(stderr, "[11] Errore scrittura 'OK' client %s\n", thisClient->address);
@@ -543,6 +543,13 @@ void *gestisciClient(void *arg)
 
                 if(!thisClient->isConnected) break; // Errore*: il client si è disconnesso o qualcosa è andato storto
 
+                /* Il server invia un feedback al client "OK": chat avviata */
+                bytesScritti = safeWrite(thisClient->socketfd, "OK", 2);
+                if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
+                    fprintf(stderr, "[12] Errore scrittura 'FU' client %s\n", thisClient->address);
+                    break;
+                }
+
                 /* Aspetta la terminazione del thread checkConnectionClient al MASSIMO PER 10 SECONDI */
                 struct timespec ts;
                 ts.tv_nsec = 0;
@@ -551,14 +558,8 @@ void *gestisciClient(void *arg)
                 ts.tv_sec += 10;
 
                 checkerror = pthread_timedjoin_np(tid, NULL, &ts);
-                if(checkerror != 0){
+                if(checkerror != 0){ // Errore
                     fprintf(stderr,"Errore pthread_timedjoin_np client %s\n", thisClient->address);
-                }
-
-                /* Il server invia un feedback al client "OK": chat avviata */
-                bytesScritti = safeWrite(thisClient->socketfd, "OK", 2);
-                if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
-                    fprintf(stderr, "[12] Errore scrittura 'FU' client %s\n", thisClient->address);
                     break;
                 }
 
@@ -578,7 +579,7 @@ void *gestisciClient(void *arg)
                 checkerror = pthread_mutex_lock(thisClient->mutex); // UNLOCK
                 if(checkerror != 0) fprintf(stderr, "Errore mutexlock Client %s\n", strerror(checkerror));
 
-                if(!thisClient->isConnected) break; // Errore*: qualcosa è andato storto
+                if(!thisClient->isConnected) break; // Errore*: Il client si è disconnesso o qualcosa è andato storto
             }
 
         }

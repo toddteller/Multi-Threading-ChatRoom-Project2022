@@ -339,7 +339,7 @@ int main(int argc, char **argv)
                 exit(EXIT_FAILURE);
             }
 
-            if(!isFull) // Se non è piena
+            if(!isFull) // Il client ha ricevuto 'OK': stanza non piena
             {
                 /* Scrittura feedback al server ('OK') */
                 bytesScritti = safeWrite(socketfd, "OK", 2);
@@ -350,6 +350,23 @@ int main(int argc, char **argv)
                     exit(EXIT_FAILURE);
                 }
 
+                /* Cattura feedback dal server ('OK') */
+                bytesLetti = safeRead(socketfd, buffer, 2);
+                if(bytesLetti != 2){
+                    checkerror = close(socketfd);
+                    fprintf(stderr, "Errore lettura feedback\n");
+                    checkS(checkerror, "Errore chiusura socket", -1);
+                    exit(EXIT_FAILURE);
+                }
+
+                /* Scrittura feedback al server ('OK' - termina checkConnectionClient() lato server) */
+                bytesScritti = safeWrite(socketfd, "OK", 2);
+                if(bytesScritti != 2){
+                    checkerror = close(socketfd);
+                    fprintf(stderr, "Errore scrittura feedback\n");
+                    checkS(checkerror, "Errore chiusura socket", -1);
+                    exit(EXIT_FAILURE);
+                }
 
             }
 
