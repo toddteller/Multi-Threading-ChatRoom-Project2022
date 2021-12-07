@@ -114,6 +114,24 @@ Client *dequeue(Queue *Q)
     return client;
 }
 
+/* Elimina il nodo con campo nome uguale a 'nickname' */
+nodoQueue *deleteNodeQueue(nodoQueue *head, char *nickname)
+{
+    if(head != NULL)
+    {
+        if(strncmp(nickname, head->client->nickname, 16) == 0){
+            nodoQueue *tmp;
+            tmp = head;
+            head = head->next;
+            free(tmp);
+        }
+        else{
+            head->next = deleteNodeQueue(head->next, nickname);
+        }
+    }
+    return head;
+}
+
 /* Stampa la coda Q */
 void printQueue(nodoQueue *head)
 {
