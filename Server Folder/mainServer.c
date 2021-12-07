@@ -543,13 +543,13 @@ void *gestisciClient(void *arg)
 
                 /* Controlla se il client si è disconnesso */
                 if(!thisClient->isConnected){ // Errore*: il client si è disconnesso o qualcosa è andato storto
-                    checkerror = pthread_mutex_lock(stanzeServer[input].Q->mutex); // LOCK
+                    checkerror = pthread_mutex_lock(stanzeServer[input].mutex); // LOCK
                     if(checkerror != 0) fprintf(stderr, "Errore mutexlock stanzeServer client disconesso %s\n", strerror(checkerror));
 
                     // Elimina il client disconnesso dalla coda della stanza 
                     stanzeServer[input].Q->head = deleteNodeQueue(stanzeServer[input].Q->head, thisClient->nickname);
 
-                    checkerror = pthread_mutex_unlock(stanzeServer[input].Q->mutex); // UNLOCK
+                    checkerror = pthread_mutex_unlock(stanzeServer[input].mutex); // UNLOCK
                     if(checkerror != 0) fprintf(stderr, "Errore mutexlock stanzeServer client disconesso %s\n", strerror(checkerror));
                 }
 
