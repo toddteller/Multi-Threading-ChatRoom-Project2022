@@ -1,6 +1,8 @@
+#define _GNU_SOURCE // pthread_timedjoin_np()
 #include "server.h"
 #include <errno.h>
 #include <signal.h>
+
 
 #define MAX_NUM_ROOMS 5 // Il numero massimo di stanze del server
 #define MAX_CLIENTS_ROOM 6 // Il numero massimo di client per stanza
@@ -501,6 +503,15 @@ void *gestisciClient(void *arg)
                 }
                 impostaTimerSocket(thisClient->socketfd, 0); //  elimina timer
 
+
+                /* Creazione thread checkConnectionClient(): controlla se il client chiude la connessione durante l'attesa */
+                pthread_t tid;
+                checkerror = pthread_create(&tid, NULL, checkConnectionClient, (void*)thisClient);
+                if(checkerror != 0){
+                    fprintf(stderr,"Client %s, errore creazione thread checkConnectionClient: %s\n", thisClient->address, strerror(checkerror));
+                    break;
+                }
+
                 /* Inserimento thisClient nella coda della stanza scelta e risveglia stanza */
                 checkerror = pthread_mutex_lock(stanzeServer[input].mutex); // LOCK
                 if(checkerror != 0) fprintf(stderr, "Errore mutexlock stanzaServer %s\n", strerror(checkerror));
@@ -513,13 +524,61 @@ void *gestisciClient(void *arg)
                 checkerror = pthread_mutex_unlock(stanzeServer[input].mutex); // UNLOCK
                 if(checkerror != 0) fprintf(stderr, "Errore mutexlock stanzaServer %s\n", strerror(checkerror));
 
-                /* Attesa client */
+                /* Il server mette in attesa il client */
                 checkerror = pthread_mutex_lock(thisClient->mutex); // LOCK
                 if(checkerror != 0) fprintf(stderr, "Errore mutexlock Client %s\n", strerror(checkerror));
 
-                while(!thisClient->isMatched){
-
+                // continua fino a quando il client non ha trovato un match o il client si è disconnesso
+                while(!thisClient->isMatched && thisClient->isConnected){ 
+                    checkerror = pthread_cond_wait(thisClient->cond, thisClient->mutex);
+                    if(checkerror != 0){ // Errore*
+                        fprintf(stderr, "[1] Errore condwait client %s\n", thisClient->address);
+                        thisClient->isConnected = false;
+                        break;
+                    }
                 }
+
+                checkerror = pthread_mutex_unlock(thisClient->mutex); // UNLOCK
+                if(checkerror != 0) fprintf(stderr, "Errore mutexlock Client %s\n", strerror(checkerror));
+
+                if(!thisClient->isConnected) break; // Errore*: il client si è disconnesso o qualcosa è andato storto
+
+                /* Aspetta la terminazione del thread checkConnectionClient al MASSIMO PER 10 SECONDI */
+                struct timespec ts;
+                ts.tv_nsec = 0;
+                ts.tv_sec = time(&ts.tv_sec);
+                if(ts.tv_sec == (time_t)-1) fprintf(stderr, "Errore settaggio timer client %s\n", thisClient->address);
+                ts.tv_sec += 10;
+
+                checkerror = pthread_timedjoin_np(tid, NULL, &ts);
+                if(checkerror != 0){
+                    fprintf(stderr,"Errore pthread_timedjoin_np client %s\n", thisClient->address);
+                }
+
+                /* Il server invia un feedback al client "OK": chat avviata */
+                bytesScritti = safeWrite(thisClient->socketfd, "OK", 2);
+                if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
+                    fprintf(stderr, "[12] Errore scrittura 'FU' client %s\n", thisClient->address);
+                    break;
+                }
+
+                /* Il server mette in attesa il client fino alla fine della chat */
+                checkerror = pthread_mutex_lock(thisClient->mutex); // LOCK
+                if(checkerror != 0) fprintf(stderr, "Errore mutexlock Client %s\n", strerror(checkerror));
+
+                while(thisClient->isMatched){
+                    checkerror = pthread_cond_wait(thisClient->cond, thisClient->mutex);
+                    if(checkerror != 0){ // Errore*
+                        fprintf(stderr, "[2] Errore condwait client %s\n", thisClient->address);
+                        thisClient->isConnected = false;
+                        break;
+                    }
+                }
+
+                checkerror = pthread_mutex_lock(thisClient->mutex); // UNLOCK
+                if(checkerror != 0) fprintf(stderr, "Errore mutexlock Client %s\n", strerror(checkerror));
+
+                if(!thisClient->isConnected) break; // Errore*: qualcosa è andato storto
             }
 
         }
