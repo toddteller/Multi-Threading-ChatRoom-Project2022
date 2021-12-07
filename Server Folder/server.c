@@ -115,18 +115,19 @@ Client *dequeue(Queue *Q)
 }
 
 /* Elimina il nodo con campo nome uguale a 'nickname' */
-nodoQueue *deleteNodeQueue(nodoQueue *head, char *nickname)
+nodoQueue *deleteNodeQueue(nodoQueue *head, nodoQueue *tail, nodoQueue *prev, char *nickname)
 {
     if(head != NULL)
     {
         if(strncmp(nickname, head->client->nickname, 16) == 0){
+            if(head == tail) tail = prev;
             nodoQueue *tmp;
             tmp = head;
             head = head->next;
             free(tmp);
         }
         else{
-            head->next = deleteNodeQueue(head->next, nickname);
+            head->next = deleteNodeQueue(head->next, tail, head, nickname);
         }
     }
     return head;
@@ -325,11 +326,13 @@ int initClient(Client *newClient, int socketClient, char *indirizzo, pthread_mut
 
     int checkerror; // variabile per controllo errori
 
+    // STATO INIZIALE CLIENT
     memset(newClient, 0, sizeof(Client));
     newClient->socketfd = socketClient; // socket file descriptor client 
     strncpy(newClient->address, indirizzo, 15); // indirizzo client
     newClient->isConnected = true; // è connesso
     newClient->isMatched = false; // non è matchato 
+    newClient->deletedFromQueue = false; // non è stato cancellato dalla coda
 
     // Inizializzazione mutex e cond client
     newClient->mutex = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));

@@ -11,6 +11,7 @@ typedef struct{
     char address[15];
     int socketfd;
     bool isConnected; // indica se il client è ancora connesso al server
+    bool deletedFromQueue; // indica se il client è stato cancellato dalla coda
     int actualRoom_id; // indica l'id della stanza attuale
     bool isMatched; // indica se il client è occupato in una chat
     char matchedAddress[15]; // indirizzo del client con cui sta/ha comunicando/comunicato
@@ -75,7 +76,7 @@ Client *dequeue(Queue *Q);
 /* Stampa la coda Q */
 void printQueue(nodoQueue *head);
 /* Elimina il client che ha nickname uguale a 'nickname'. Non elimina se non esiste. */
-void deleteNodeQueue(nodoQueue *head, char *nickname);
+nodoQueue *deleteNodeQueue(nodoQueue *head, nodoQueue *tail, nodoQueue *prev, char *nickname);
 /* Distruggi la coda Q */
 void destroyQueue(Queue *Q, nodoQueue *head);
 /* Cerca una coppia di client dalla coda Q.
