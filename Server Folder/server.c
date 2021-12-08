@@ -336,6 +336,8 @@ int initClient(Client *newClient, int socketClient, char *indirizzo, pthread_mut
     newClient->isConnected = true; // è connesso
     newClient->isMatched = false; // non è matchato 
     newClient->deletedFromQueue = false; // non è stato cancellato dalla coda
+    newClient->matchedRoom_id = -1;
+    newClient->actualRoom_id = -1;
 
     // Inizializzazione mutex e cond client
     newClient->mutex = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
@@ -425,6 +427,7 @@ ssize_t safeWrite(int fd, const void *buf, size_t count)
         else{
             bytesDaScrivere -= bytesScritti;
         }
+        fprintf(stderr,"Scritto: %s\n", (char*)buf);
     }
 
     return (count - bytesDaScrivere);
