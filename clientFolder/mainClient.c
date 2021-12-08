@@ -8,6 +8,14 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
+#include <sys/stat.h>
+#include <malloc.h>
+
+typedef struct{
+    char roomName[16];
+    int maxClients;
+    int numClients;
+} Room;
 
 /* Funzioni controllo errori */
 void checkS(int valueToCheck, const char *s, int unsuccessValue); //socket
@@ -16,11 +24,8 @@ void checkS(int valueToCheck, const char *s, int unsuccessValue); //socket
 ssize_t safeRead(int fd, void *buf, size_t count);
 ssize_t safeWrite(int fd, const void *buf, size_t count);
 
-typedef struct{
-    char roomName[16];
-    int maxClients;
-    int numClients;
-} Room;
+/* Costruisce il messaggio prima di inviarlo */
+void buildMessage(char *output, char *messaggio, char *nickname);
 
 int main(int argc, char **argv)
 {
@@ -29,7 +34,7 @@ int main(int argc, char **argv)
 
     char *buffer;
     size_t bufsize = sizeof(buffer);
-    char nickname[16];
+    char nickname[18];
     unsigned short int port;
     struct sockaddr_in indirizzo;
     int socketfd, checkerror;
@@ -61,8 +66,6 @@ int main(int argc, char **argv)
         checkS(checkerror, "Errore chiusura socket", -1);
         exit(EXIT_FAILURE);
     }
-
-    printf("bytesScritti nickname: %ld\n", bytesScritti);
 
     buffer = (char*)malloc(sizeof(buffer)*16);
     if(buffer == NULL){
@@ -260,6 +263,16 @@ int main(int argc, char **argv)
                 printf("--------------------------\n\n");
             }// end for
 
+            /* Cattura feedback dal server ("OK") */
+            memset(buffer, '\0', bufsize);
+            bytesLetti = safeRead(socketfd, buffer, 2);
+            if(bytesLetti != 2 || strncmp(buffer, "OK", 2) != 0){
+                checkerror = close(socketfd);
+                fprintf(stderr, "Errore lettura feedback\n");
+                checkS(checkerror, "Errore chiusura socket", -1);
+                exit(EXIT_FAILURE);
+            }
+
             /* Scelta della stanza */
             do {
                 do {
@@ -358,6 +371,7 @@ int main(int argc, char **argv)
                     checkS(checkerror, "Errore chiusura socket", -1);
                     exit(EXIT_FAILURE);
                 }
+                fprintf(stderr, "ricevuto ok\n");
 
                 /* Scrittura feedback al server ('OK' - termina checkConnectionClient() lato server) */
                 bytesScritti = safeWrite(socketfd, "OK", 2);
@@ -368,6 +382,69 @@ int main(int argc, char **argv)
                     exit(EXIT_FAILURE);
                 }
 
+                printf("Chat avviata.\n");
+
+                fd_set fds;
+                int nfds = socketfd + 1;
+                char resultMsg[1024];
+                char *bufferMsg = (char*)calloc(1024, sizeof(char));
+                size_t sizeBufferMsg = 1024;
+                bool stopChat = false;
+
+                do{
+                    FD_ZERO(&fds);
+                    FD_SET(socketfd, &fds);
+                    FD_SET(STDIN_FILENO, &fds);
+
+                    checkerror = select(nfds, &fds, NULL, NULL, NULL);
+                    if(checkerror < 0){ // errore select
+                        fprintf(stderr,"Errore select\n");
+                        break;
+                    }
+                    for(int fd=0; fd<nfds; fd++)
+                    {
+                        if(FD_ISSET(fd, &fds))
+                        {
+                            if(fd == 0) // STDIN_FILENO
+                            {
+                                getline(&bufferMsg, &sizeBufferMsg, stdin);
+                                if(strlen(bufferMsg) > 1006){ 
+                                    fprintf(stderr,"Messaggio troppo lungo! (massimo 1000 caratteri)\n");
+                                }
+                                else
+                                {
+                                    buildMessage(resultMsg, bufferMsg, nickname);
+                                    fprintf(stderr, "Stringa: %s", resultMsg);
+                                    bytesScritti = safeWrite(socketfd, resultMsg, 1024);
+                                    if(bytesScritti != 1024){
+                                        fprintf(stderr,"Errore scrittura messaggio.\n");
+                                        break;
+                                    }
+                                }
+                                memset(bufferMsg, '\0', malloc_usable_size(bufferMsg));
+                            }
+                            else if(fd == socketfd)
+                            {
+                                bytesLetti = safeRead(socketfd, bufferMsg, 1024);
+                                if(bytesLetti != 1024){
+                                    fprintf(stderr,"Errore lettura messaggio.\n");
+                                    checkerror = -1;
+                                    break;
+                                }
+                                else if(strncmp(bufferMsg, "STOP", 4) == 0){
+                                    printf("Chat terminata.\n");
+                                    stopChat = true;
+                                }
+                                else{
+                                    printf("%s", bufferMsg);
+                                }
+                                memset(bufferMsg, '\0', malloc_usable_size(bufferMsg));
+                            }
+                        }
+                    }
+                }while(!stopChat);
+
+                free(bufferMsg);
             }
 
         }
@@ -375,11 +452,11 @@ int main(int argc, char **argv)
             break;
         }
 
-    } while(1);
-
+    } while(input == 1 && checkerror == 0);
 
 
     /* Chiusura socket */
+    fprintf(stderr, "Chiusura connessione\n");
     checkerror = close(socketfd);
     checkS(checkerror, "Errore chiusura socket", -1);
 
@@ -404,7 +481,7 @@ ssize_t safeRead(int fd, void *buf, size_t count)
 
     while(bytesDaLeggere > 0)
     {
-        if((bytesLetti = read(fd, buf+(count-bytesDaLeggere), bytesDaLeggere)) < 0){
+        if((bytesLetti = read(fd, buf+(count-bytesDaLeggere), bytesDaLeggere)) <= 0){
             return -1;
         }
         else if(bytesLetti == 0){
@@ -435,4 +512,12 @@ ssize_t safeWrite(int fd, const void *buf, size_t count)
     }
 
     return (count - bytesDaScrivere);
+}
+
+void buildMessage(char *output, char *messaggio, char *nickname){
+    memset(output, '\0', 1024);
+    char buffer[2] = ": ";
+    strncpy(output, nickname, 16);
+    strncat(output, buffer, 2);
+    strncat(output, messaggio, 1006);
 }

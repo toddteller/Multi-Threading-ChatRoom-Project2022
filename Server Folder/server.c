@@ -220,7 +220,7 @@ Match *searchCouple(Queue *Q, nodoQueue *actual, nodoQueue *actualprev, nodoQueu
             if(head == NULL && Q->head != NULL) // Se è vero, è stato di nuovo eliminato l'ultimo l'elemento dalla coda
                 Q->tail = headprev; // -> aggiornamento puntatore 'Q->tail' della coda Q
 
-            Q->numeroClients -= 2; // Aggiornamento numero clients presenti nella coda 'Q'
+            Q->numeroClients -= 2;
         }
     }
     return matchFound;
@@ -394,7 +394,7 @@ ssize_t safeRead(int fd, void *buf, size_t count)
 
     while(bytesDaLeggere > 0)
     {
-        if((bytesLetti = read(fd, buf+(count-bytesDaLeggere), bytesDaLeggere)) < 0){
+        if((bytesLetti = read(fd, buf+(count-bytesDaLeggere), bytesDaLeggere)) <= 0){
             return -1;
         }
         else if(bytesLetti == 0){
