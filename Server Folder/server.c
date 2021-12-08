@@ -186,13 +186,15 @@ Match *searchCouple(Queue *Q, nodoQueue *actual, nodoQueue *actualprev, nodoQueu
 
         if(cond_a && cond_b && (cond_c || cond_d)) // Coppia non valida
         {
+            fprintf(stderr, "coppia non trovata funzione\n");
             matchFound = searchCouple(Q, actual->next, actual, head, headprev);
         }
         else // Coppia valida
         {
+            fprintf(stderr, "coppia trovata funzione\n");
             matchFound = (Match*)malloc(sizeof(matchFound));
             if(matchFound == NULL)
-                fprintf(stderr,"Errore allocazione match searchCouple()"), exit(EXIT_FAILURE);
+                fprintf(stderr,"Errore allocazione match searchCouple()");
 
             nodoQueue *temp;
 
@@ -221,6 +223,7 @@ Match *searchCouple(Queue *Q, nodoQueue *actual, nodoQueue *actualprev, nodoQueu
                 Q->tail = headprev; // -> aggiornamento puntatore 'Q->tail' della coda Q
 
             Q->numeroClients -= 2;
+            if(Q->numeroClients == 0){Q->head = NULL, Q->tail = NULL;}
         }
     }
     return matchFound;
@@ -394,7 +397,7 @@ ssize_t safeRead(int fd, void *buf, size_t count)
 
     while(bytesDaLeggere > 0)
     {
-        if((bytesLetti = read(fd, buf+(count-bytesDaLeggere), bytesDaLeggere)) <= 0){
+        if((bytesLetti = read(fd, buf+(count-bytesDaLeggere), bytesDaLeggere)) < 0){
             return -1;
         }
         else if(bytesLetti == 0){
@@ -403,6 +406,7 @@ ssize_t safeRead(int fd, void *buf, size_t count)
         else{
             bytesDaLeggere -= bytesLetti;
         }
+        fprintf(stderr,"Letto:%s\n", (char*)buf);
     }
 
     return (count - bytesDaLeggere);
