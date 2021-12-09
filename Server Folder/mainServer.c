@@ -659,8 +659,8 @@ void *gestisciClient(void *arg)
                         if(checkerror != 0) fprintf(stderr, "Errore mutexlock stanzeServer client disconesso %s\n", strerror(checkerror));
 
                         // elimina client dalla coda
-                        stanzeServer[input].Q->head = deleteNodeQueue(stanzeServer[input].Q, stanzeServer[input].Q->head, 
-                                                                      stanzeServer[input].Q->tail, NULL, thisClient->nickname);
+                        stanzeServer[input].Q->head = deleteNodeQueue(stanzeServer[input].Q, stanzeServer[input].Q->head, NULL, thisClient->nickname);
+                                                                      
                         stanzeServer[input].numClients -=1; // decrementa numero clients stanza
                         thisClient->deletedFromQueue = true; // client cancellato dalla coda
 
@@ -709,7 +709,7 @@ void *gestisciClient(void *arg)
                 if(checkerror != 0) fprintf(stderr, "Errore mutexlock Client %s\n", strerror(checkerror));
 
                 while(thisClient->isMatched && thisClient->isConnected){
-                    fprintf(stderr,"Client %s in attesa.\n", thisClient->nickname);
+                    fprintf(stderr,"Client %s in attesa chat.\n", thisClient->nickname);
                     checkerror = pthread_cond_wait(thisClient->cond, thisClient->mutex);
                     if(checkerror != 0){ // Errore*
                         fprintf(stderr, "[2] Errore condwait client %s\n", thisClient->address);
@@ -825,14 +825,14 @@ void *gestisciChat(void *arg)
     struct timeval tv; // timeout select
     tv.tv_usec = 0;
 
+    /* Risveglia i client accoppiati e aggiorna informazioni */
+    checkerror = pthread_mutex_lock(pairClients->couplantClient1->mutex); // LOCK Client1
+    if(checkerror != 0) fprintf(stderr, "Errore mutexlock chat Client1 %s (%s)\n", pairClients->couplantClient1->nickname, strerror(checkerror));
+    checkerror = pthread_mutex_lock(pairClients->couplantClient2->mutex); // LOCK Client2
+    if(checkerror != 0) fprintf(stderr, "Errore mutexlock chat Client2 %s (%s)\n", pairClients->couplantClient2->nickname, strerror(checkerror));
+
     Client *Client1 = pairClients->couplantClient1;
     Client *Client2 = pairClients->couplantClient2;
-    
-    /* Risveglia i client accoppiati e aggiorna informazioni */
-    checkerror = pthread_mutex_lock(Client1->mutex); // LOCK Client1
-    if(checkerror != 0) fprintf(stderr, "Errore mutexlock chat Client1 %s (%s)\n", Client1->nickname, strerror(checkerror));
-    checkerror = pthread_mutex_lock(Client2->mutex); // LOCK Client2
-    if(checkerror != 0) fprintf(stderr, "Errore mutexlock chat Client2 %s (%s)\n", Client2->nickname, strerror(checkerror));
 
     Client1->isMatched = true;
     Client2->isMatched = true;

@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <malloc.h>
 #include <fcntl.h>
+#include <ctype.h>
 
 typedef struct{
     char roomName[16];
@@ -27,6 +28,12 @@ ssize_t safeWrite(int fd, const void *buf, size_t count);
 
 /* Costruisce il messaggio prima di inviarlo */
 void buildMessage(char *output, char *messaggio, char *nickname);
+
+/* FUNZIONI UI - USER INTERFACE*/
+/* Stampa un carattere 'count' volte */
+void stampaCarattere(int carattere, int count);
+/* Stampa le stanze prelevate */
+void stampaStanze(Room stanze[], int max);
 
 int main(int argc, char **argv)
 {
@@ -193,10 +200,9 @@ int main(int argc, char **argv)
                 exit(EXIT_FAILURE);
             }
 
+            /* Lettura informazioni stanze */
             for(int i=0; i<numeroStanze; i++){
 
-                printf("STANZA NUMERO [%d]\n", i+1);
-                printf("--------------------------\n");
                 // LETTURA NOME STANZA I-ESIMA
                 memset(buffer, '\0', bufsize);
                 bytesLetti = safeRead(socketfd, buffer, 16);
@@ -208,7 +214,6 @@ int main(int argc, char **argv)
                 }
 
                 strncpy(Rooms[i].roomName, buffer, 16);
-                printf("Nome stanza: %s", Rooms[i].roomName);
 
                 /* Scrittura feedback al server ('OK') */
                 bytesScritti = safeWrite(socketfd, "OK", 2);
@@ -229,8 +234,7 @@ int main(int argc, char **argv)
                     exit(EXIT_FAILURE);
                 }
 
-                int maxClients = atoi(buffer);
-                Rooms[i].maxClients = maxClients;
+                Rooms[i].maxClients = atoi(buffer);
 
                 /* Scrittura feedback al server ('OK') */
                 bytesScritti = safeWrite(socketfd, "OK", 2);
@@ -251,10 +255,7 @@ int main(int argc, char **argv)
                     exit(EXIT_FAILURE);
                 }
 
-                int numClients = atoi(buffer);
-                Rooms[i].numClients = numClients;
-
-                printf("Clients: %d/%d\n", Rooms[i].numClients, Rooms[i].maxClients);
+                Rooms[i].numClients = atoi(buffer);
 
                 /* Scrittura feedback al server ('OK') */
                 bytesScritti = safeWrite(socketfd, "OK", 2);
@@ -264,8 +265,6 @@ int main(int argc, char **argv)
                     checkS(checkerror, "Errore chiusura socket", -1);
                     exit(EXIT_FAILURE);
                 }
-
-                printf("--------------------------\n\n");
             }// end for
 
             /* Cattura feedback dal server ("OK") */
@@ -277,6 +276,8 @@ int main(int argc, char **argv)
                 checkS(checkerror, "Errore chiusura socket", -1);
                 exit(EXIT_FAILURE);
             }
+
+            stampaStanze(Rooms, numeroStanze);
 
             /* Scelta della stanza */
             do {
@@ -388,14 +389,14 @@ int main(int argc, char **argv)
                     exit(EXIT_FAILURE);
                 }
 
-                /* Elimina eventuali caratteri dallo STDIN */
-                checkerror = fcntl(STDIN_FILENO, F_SETFL, (fcntl(STDIN_FILENO, F_GETFD)|O_NONBLOCK));
-                if(checkerror!=0) fprintf(stderr,"Error fcntl\n");
-                while((checkerror = read(STDIN_FILENO, buffer, 1)) != 0);
-                if(checkerror!=0) fprintf(stderr,"Error cleaning stdin %d\n", checkerror);
-                memset(buffer, '\0', malloc_usable_size(buffer));
-                checkerror = fcntl(STDIN_FILENO, F_SETFL, (fcntl(STDIN_FILENO, F_GETFD)|!O_NONBLOCK));
-                if(checkerror!=0) fprintf(stderr,"Error fcntl2\n");
+                // /* Elimina eventuali caratteri dallo STDIN */
+                // checkerror = fcntl(STDIN_FILENO, F_SETFL, (fcntl(STDIN_FILENO, F_GETFD)|O_NONBLOCK));
+                // if(checkerror!=0) fprintf(stderr,"Error fcntl\n");
+                // while((checkerror = read(STDIN_FILENO, buffer, 1)) != 0);
+                // if(checkerror!=0) fprintf(stderr,"Error cleaning stdin %d\n", checkerror);
+                // memset(buffer, '\0', malloc_usable_size(buffer));
+                // checkerror = fcntl(STDIN_FILENO, F_SETFL, (fcntl(STDIN_FILENO, F_GETFD)|!O_NONBLOCK));
+                // if(checkerror!=0) fprintf(stderr,"Error fcntl2\n");
 
                 printf("Chat avviata.\n");
 
@@ -477,6 +478,7 @@ int main(int argc, char **argv)
                 }while(!stopChat);
 
                 free(bufferMsg);
+                fprintf(stderr, "Chat terminata.\n");
 
                 /* Cattura feedback dal server ('OK') */
                 memset(buffer, '\0', bufsize);
@@ -523,7 +525,6 @@ int main(int argc, char **argv)
     }
     
 }
-
 
 
 /* Funzioni controllo errori */
@@ -583,4 +584,57 @@ void buildMessage(char *output, char *messaggio, char *nickname){
     strncpy(output, nickname, 16);
     strncat(output, buffer, 2);
     strncat(output, messaggio, 1006);
+}
+
+/* FUNZIONI UI - USER INTERFACE*/
+/* Stampa un carattere 'count' volte */
+void stampaCarattere(int carattere, int count)
+{
+    for(int i=0; i<count; i++)
+    {
+        printf("%c", carattere);
+    }
+}
+
+void stampaStanze(Room stanze[], int max)
+{
+    int len;
+    for(int i=0; i<max; i++)
+    {
+        printf("%c", 124);
+        stampaCarattere(35, 17);
+        printf("%c", 124);
+        printf("\n");
+
+        printf("%c ", 124);
+        printf("ROOM NUMBER [%d]", i+1);
+        printf(" %c", 124);
+        printf("\n");
+
+        printf("%c", 124);
+        stampaCarattere(35, 17); // =
+        printf("%c", 124);
+        printf("\n");
+
+        printf("%c ", 124);
+        len = strlen(stanze[i].roomName);
+        stanze[i].roomName[len-1] = '\0';
+        len = 14 - len;
+        printf("> %s", stanze[i].roomName);
+        stampaCarattere(32, len);
+        printf(" %c", 124);
+        printf("\n");
+
+        printf("%c ", 124);
+        printf("> Clients: %d%c%d", stanze[i].numClients, 124, stanze[i].maxClients);
+        stampaCarattere(32, 1);
+        printf(" %c", 124);
+        printf("\n");
+
+        printf("%c", 124);
+        stampaCarattere(35, 17);
+        printf("%c", 124);
+        
+        printf("\n\n");
+    }
 }

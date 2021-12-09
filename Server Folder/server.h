@@ -77,7 +77,7 @@ Client *dequeue(Queue *Q);
 /* Stampa la coda Q */
 void printQueue(nodoQueue *head);
 /* Elimina il client che ha nickname uguale a 'nickname'. Non elimina se non esiste. */
-nodoQueue *deleteNodeQueue(Queue *Q, nodoQueue *head, nodoQueue *tail, nodoQueue *prev, char *nickname);
+nodoQueue *deleteNodeQueue(Queue *Q, nodoQueue *head, nodoQueue *prev, char *nickname);
 /* Distruggi la coda Q */
 void destroyQueue(Queue *Q, nodoQueue *head);
 /* Cerca una coppia di client dalla coda Q.

@@ -115,12 +115,12 @@ Client *dequeue(Queue *Q)
 }
 
 /* Elimina il nodo con campo nome uguale a 'nickname' */
-nodoQueue *deleteNodeQueue(Queue *Q, nodoQueue *head, nodoQueue *tail, nodoQueue *prev, char *nickname)
+nodoQueue *deleteNodeQueue(Queue *Q, nodoQueue *head, nodoQueue *prev, char *nickname)
 {
     if(head != NULL)
     {
         if(strncmp(nickname, head->client->nickname, 16) == 0){
-            if(head == tail) tail = prev;
+            if(head == Q->tail) Q->tail = prev;
             nodoQueue *tmp;
             tmp = head;
             head = head->next;
@@ -132,7 +132,7 @@ nodoQueue *deleteNodeQueue(Queue *Q, nodoQueue *head, nodoQueue *tail, nodoQueue
             }
         }
         else{
-            head->next = deleteNodeQueue(Q, head->next, tail, head, nickname);
+            head->next = deleteNodeQueue(Q, head->next, head, nickname);
         }
     }
     return head;
