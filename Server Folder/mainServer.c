@@ -17,7 +17,7 @@ void checkS(int valueToCheck, const char *s, int unsuccessValue); // per socket
 void *gestisciRoom(void *arg);
 void *gestisciClient(void *arg);
 void *gestisciChat(void *arg);
-void *checkConnectionClient(void *arg); // controlla se il client ha chiuso la connessione mentre è in attesa
+void *checkConnectionClient(void *arg); // controlla se il client ha chiuso la connessione mentre era in attesa
 
 // Puntatore globale per accesso alla lista di nicknames dei clients del server
 ListNicknames *listaNicknames;
@@ -152,6 +152,7 @@ void *gestisciRoom(void *arg)
 
     fprintf(stderr, "Thread stanza avviato. Nome stanza: %s", Stanza->roomName);
 
+    // utilizzata per evitare situazioni di dead lock
     bool notFound = false; // significato: non è stata trovata una coppia di client da mettere in comunicazione
 
     do
@@ -179,8 +180,8 @@ void *gestisciRoom(void *arg)
         }
         else{ // Non si è verificato nessun errore
 
-            fprintf(stderr, "Cerca coppia client.\n");
             /* Cerca coppia client */
+            fprintf(stderr, "Cerca coppia client.\n");
             Match *matchFound = NULL; // coppia di client
             nodoQueue *head, *headprev, *actual, *actualprev;
             int count = 0;
@@ -217,10 +218,12 @@ void *gestisciRoom(void *arg)
                 else if(!Client1->isConnected){ // Client 1 si è disconnesso: ritorna in attesa
                     Client1->deletedFromQueue = true; // Client 1 cancellato dalla coda
                     Stanza->numClients -= 1; // decrementa numero clients della stanza
+                    enqueue(Stanza->Q, Client2); // rimetti client 2 in coda
                 }
                 else if(!Client2->isConnected){ // Client 2 si è disconnesso: ritorna in attesa
                     Client2->deletedFromQueue = true; // Client 2 cancellato dalla coda
                     Stanza->numClients -= 1; // decrementa numero clients della stanza
+                    enqueue(Stanza->Q, Client1); // rimetti client 1 in coda
                 }
                 else{ // Entrambi i client sono connessi: avvio chat
 
@@ -349,7 +352,7 @@ void *gestisciClient(void *arg)
     int input = 0; // Valore inserito dal client
 
     do{
-        thisClient->actualRoom_id = -1; // il client non appartiene a nessuna stanza
+        thisClient->actualRoom_id = -1; // per il momento il client non appartiene a nessuna stanza
         do {
             checkInput = false;
             /* Il server deve ricevere '1' oppure '2'. Corrispondono ad operazioni da eseguire. */
@@ -630,7 +633,7 @@ void *gestisciClient(void *arg)
                 /* Il server mette in attesa questo thread (e il client) */
                 checkerror = pthread_mutex_lock(thisClient->mutex); // LOCK
                 if(checkerror != 0) fprintf(stderr, "Errore mutexlock Client %s\n", strerror(checkerror));
-
+                
                 // continua fino a quando il client non ha trovato un match o il client si è disconnesso
                 while(!thisClient->isMatched && thisClient->isConnected){
                     fprintf(stderr,"In attesa di un match, client %s.\n", thisClient->nickname); 
@@ -655,8 +658,9 @@ void *gestisciClient(void *arg)
                         checkerror = pthread_mutex_lock(stanzeServer[input].mutex); // LOCK
                         if(checkerror != 0) fprintf(stderr, "Errore mutexlock stanzeServer client disconesso %s\n", strerror(checkerror));
 
-                        stanzeServer[input].Q->head = deleteNodeQueue(stanzeServer[input].Q->head, stanzeServer[input].Q->tail, NULL, thisClient->nickname);
-                        stanzeServer[input].Q->numeroClients -= 1; // decrementa numero clients coda
+                        // elimina client dalla coda
+                        stanzeServer[input].Q->head = deleteNodeQueue(stanzeServer[input].Q, stanzeServer[input].Q->head, 
+                                                                      stanzeServer[input].Q->tail, NULL, thisClient->nickname);
                         stanzeServer[input].numClients -=1; // decrementa numero clients stanza
                         thisClient->deletedFromQueue = true; // client cancellato dalla coda
 
@@ -893,6 +897,7 @@ void *gestisciChat(void *arg)
                 fprintf(stderr, "[1] Errore chat scrittura client %s\n", Client2->address);
                 Client2->isConnected = false;
             }
+            stopChat = true;
         }
         else // select
         {

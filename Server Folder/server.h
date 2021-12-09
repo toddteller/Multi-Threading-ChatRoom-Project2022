@@ -4,16 +4,17 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
+#include <stdatomic.h>
 
 /* Struttura CLIENT: contiene tutte le informazioni sul client necessarie */
 typedef struct{
     char nickname[16];
     char address[15];
     int socketfd;
-    bool isConnected; // indica se il client è ancora connesso al server
-    bool deletedFromQueue; // indica se il client è stato cancellato dalla coda
+    atomic_bool isConnected; // indica se il client è ancora connesso al server
+    atomic_bool deletedFromQueue; // indica se il client è stato cancellato dalla coda
     int actualRoom_id; // indica l'id della stanza attuale
-    bool isMatched; // indica se il client è occupato in una chat
+    atomic_bool isMatched; // indica se il client è occupato in una chat
     char matchedAddress[15]; // indirizzo del client con cui sta/ha comunicando/comunicato
     int matchedRoom_id; // indica l'id della stanza in cui il client sta/ha comunicando/comunicato
     pthread_mutex_t *mutex;
@@ -76,7 +77,7 @@ Client *dequeue(Queue *Q);
 /* Stampa la coda Q */
 void printQueue(nodoQueue *head);
 /* Elimina il client che ha nickname uguale a 'nickname'. Non elimina se non esiste. */
-nodoQueue *deleteNodeQueue(nodoQueue *head, nodoQueue *tail, nodoQueue *prev, char *nickname);
+nodoQueue *deleteNodeQueue(Queue *Q, nodoQueue *head, nodoQueue *tail, nodoQueue *prev, char *nickname);
 /* Distruggi la coda Q */
 void destroyQueue(Queue *Q, nodoQueue *head);
 /* Cerca una coppia di client dalla coda Q.

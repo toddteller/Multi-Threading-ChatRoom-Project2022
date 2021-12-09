@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <sys/stat.h>
 #include <malloc.h>
+#include <fcntl.h>
 
 typedef struct{
     char roomName[16];
@@ -386,6 +387,15 @@ int main(int argc, char **argv)
                     checkS(checkerror, "Errore chiusura socket", -1);
                     exit(EXIT_FAILURE);
                 }
+
+                /* Elimina eventuali caratteri dallo STDIN */
+                checkerror = fcntl(STDIN_FILENO, F_SETFL, (fcntl(STDIN_FILENO, F_GETFD)|O_NONBLOCK));
+                if(checkerror!=0) fprintf(stderr,"Error fcntl\n");
+                while((checkerror = read(STDIN_FILENO, buffer, 1)) != 0);
+                if(checkerror!=0) fprintf(stderr,"Error cleaning stdin %d\n", checkerror);
+                memset(buffer, '\0', malloc_usable_size(buffer));
+                checkerror = fcntl(STDIN_FILENO, F_SETFL, (fcntl(STDIN_FILENO, F_GETFD)|!O_NONBLOCK));
+                if(checkerror!=0) fprintf(stderr,"Error fcntl2\n");
 
                 printf("Chat avviata.\n");
 
