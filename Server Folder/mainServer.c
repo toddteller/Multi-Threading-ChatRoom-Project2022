@@ -309,8 +309,7 @@ void *gestisciClient(void *arg)
 
     if(nicknameExists) // Nickname già esistente
     {
-        /* Il server invia un feedback "EX" al client per indicare che il
-        nickname è già presente nel server */
+        /* Il server invia un feedback "EX" al client per indicare che il nickname è già presente nel server */
         bytesScritti = safeWrite(thisClient->socketfd, "EX", 2);
         if(bytesScritti != 2){ // Errore
             fprintf(stderr, "[2] Errore scrittura 'EX' client %s\n", thisClient->address);
@@ -371,6 +370,7 @@ void *gestisciClient(void *arg)
             bytesLetti = safeRead(thisClient->socketfd, buffer, 1);
             if(bytesLetti != 1){ // Errore: distruggi client e chiudi thread.
                 fprintf(stderr, "[5] Errore lettura input client %s\n", thisClient->nickname);
+                thisClient->isConnected = false;
                 break;
             }
             impostaTimerSocket(thisClient->socketfd, 0); //  elimina timer socket
@@ -381,6 +381,7 @@ void *gestisciClient(void *arg)
                 bytesScritti = safeWrite(thisClient->socketfd, "IN", 2);
                 if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
                     fprintf(stderr, "[6] Errore scrittura 'IN' client %s\n", thisClient->nickname);
+                    thisClient->isConnected = false;
                     break;
                 }
             }
@@ -395,6 +396,7 @@ void *gestisciClient(void *arg)
         bytesScritti = safeWrite(thisClient->socketfd, "OK", 2);
         if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
             fprintf(stderr, "[7] Errore scrittura 'OK' client %s\n", thisClient->nickname);
+            thisClient->isConnected = false;
             break;
         }
 
@@ -405,6 +407,7 @@ void *gestisciClient(void *arg)
         bytesLetti = safeRead(thisClient->socketfd, buffer, 2);
         if(bytesLetti != 2 || strncmp(buffer, "OK", 2) != 0){ // Errore: distruggi client e chiudi thread.
             fprintf(stderr, "[8] Errore lettura feedback client %s\n", thisClient->nickname);
+            thisClient->isConnected = false;
             break;
         }
         impostaTimerSocket(thisClient->socketfd, 0); //  elimina timer socket
@@ -419,6 +422,7 @@ void *gestisciClient(void *arg)
             bytesScritti = safeWrite(thisClient->socketfd, buffer, 1);
             if(bytesScritti != 1){ // Errore: distruggi client e chiudi thread.
                 fprintf(stderr, "[9] Errore scrittura numero stanze client %s\n", thisClient->nickname);
+                thisClient->isConnected = false;
                 break;
             }
 
@@ -429,6 +433,7 @@ void *gestisciClient(void *arg)
             bytesLetti = safeRead(thisClient->socketfd, buffer, 2);
             if(bytesLetti != 2 || strncmp(buffer, "OK", 2) != 0){ // Errore: distruggi client e chiudi thread.
                 fprintf(stderr, "[10] Errore lettura feedback client %s\n", thisClient->nickname);
+                thisClient->isConnected = false;
                 break;
             }
             impostaTimerSocket(thisClient->socketfd, 0); //  elimina timer SOCKET
@@ -445,6 +450,7 @@ void *gestisciClient(void *arg)
                 if(bytesScritti != 16){ // Errore: distruggi client e chiudi thread.
                     fprintf(stderr, "[11] Errore scrittura nome stanze %d-iesima client %s\n", i, thisClient->nickname);
                     error = true; // Setta errore
+                    thisClient->isConnected = false;
                     break;
                 }
 
@@ -459,6 +465,7 @@ void *gestisciClient(void *arg)
                 if(bytesLetti != 2 || strncmp(buffer, "OK", 2) != 0){ // Errore: distruggi client e chiudi thread.
                     fprintf(stderr, "[12] Errore lettura feedback client %s\n", thisClient->nickname);
                     error = true; // Setta errore
+                    thisClient->isConnected = false;
                     break;
                 }
                 impostaTimerSocket(thisClient->socketfd, 0); //  elimina timer
@@ -474,6 +481,7 @@ void *gestisciClient(void *arg)
                 if(bytesScritti != 1){ // Errore: distruggi client e chiudi thread.
                     fprintf(stderr, "[13] Errore scrittura numero max stanza client %s\n", thisClient->nickname);
                     error = true; // Setta errore
+                    thisClient->isConnected = false;
                     break;
                 }
 
@@ -488,6 +496,7 @@ void *gestisciClient(void *arg)
                 if(bytesLetti != 2 || strncmp(buffer, "OK", 2) != 0){ // Errore: distruggi client e chiudi thread.
                     fprintf(stderr, "[14] Errore lettura feedback client %s\n", thisClient->nickname);
                     error = true; // Setta errore
+                    thisClient->isConnected = false;
                     break;
                 }
                 impostaTimerSocket(thisClient->socketfd, 0); //  elimina timer
@@ -503,6 +512,7 @@ void *gestisciClient(void *arg)
                 if(bytesScritti != 1){ // Errore: distruggi client e chiudi thread.
                     fprintf(stderr, "[15] Errore scrittura numero clients stanza client %s\n", thisClient->nickname);
                     error = true; // Setta errore
+                    thisClient->isConnected = false;
                     break;
                 }
 
@@ -517,6 +527,7 @@ void *gestisciClient(void *arg)
                 if(bytesLetti != 2 || strncmp(buffer, "OK", 2) != 0){ // Errore: distruggi client e chiudi thread.
                     fprintf(stderr, "[16] Errore lettura feedback client %s\n", thisClient->nickname);
                     error = true; // Setta errore
+                    thisClient->isConnected = false;
                     break;
                 }
                 impostaTimerSocket(thisClient->socketfd, 0); //  elimina timer socket
@@ -528,6 +539,7 @@ void *gestisciClient(void *arg)
             bytesScritti = safeWrite(thisClient->socketfd, "OK", 2);
             if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
                 fprintf(stderr, "[17] Errore scrittura 'OK' client %s\n", thisClient->nickname);
+                thisClient->isConnected = false;
                 break;
             }
 
@@ -540,6 +552,7 @@ void *gestisciClient(void *arg)
                 bytesLetti = safeRead(thisClient->socketfd, buffer, 1);
                 if(bytesLetti != 1){ // Errore: distruggi client e chiudi thread.
                     fprintf(stderr, "[18] Errore lettura feedback client %s\n", thisClient->nickname);
+                    thisClient->isConnected = false;
                     error = true;
                     break;
                 }
@@ -558,6 +571,7 @@ void *gestisciClient(void *arg)
                     bytesScritti = safeWrite(thisClient->socketfd, "IN", 2);
                     if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
                         fprintf(stderr, "[19] Errore scrittura 'IN' client %s\n", thisClient->nickname);
+                        thisClient->isConnected = false;
                         error = true;
                         break;
                     }
@@ -570,6 +584,7 @@ void *gestisciClient(void *arg)
             bytesScritti = safeWrite(thisClient->socketfd, "OK", 2);
             if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
                 fprintf(stderr, "[20] Errore scrittura 'OK' client %s\n", thisClient->nickname);
+                thisClient->isConnected = false;
                 break;
             }
 
@@ -580,6 +595,7 @@ void *gestisciClient(void *arg)
             bytesLetti = safeRead(thisClient->socketfd, buffer, 2);
             if(bytesLetti != 2 || strncmp(buffer, "OK", 2) != 0){ // Errore: distruggi client e chiudi thread.
                 fprintf(stderr, "[21] Errore lettura feedback client %s\n", thisClient->nickname);
+                thisClient->isConnected = false;
                 break;
             }
             impostaTimerSocket(thisClient->socketfd, 0); //  elimina timer socket
@@ -601,6 +617,7 @@ void *gestisciClient(void *arg)
                 bytesScritti = safeWrite(thisClient->socketfd, "OK", 2);
                 if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
                     fprintf(stderr, "[22] Errore scrittura 'OK' client %s\n", thisClient->nickname);
+                    thisClient->isConnected = false;
                     break;
                 }
             }
@@ -610,6 +627,7 @@ void *gestisciClient(void *arg)
                 bytesScritti = safeWrite(thisClient->socketfd, "FU", 2);
                 if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
                     fprintf(stderr, "[23] Errore scrittura 'FU' client %s\n", thisClient->nickname);
+                    thisClient->isConnected = false;
                     break;
                 }
             }
@@ -624,6 +642,7 @@ void *gestisciClient(void *arg)
                 bytesLetti = safeRead(thisClient->socketfd, buffer, 2);
                 if(bytesLetti != 2 || strncmp(buffer, "OK", 2) != 0){ // Errore: distruggi client e chiudi thread.
                     fprintf(stderr, "[24] Errore lettura feedback client %s\n", thisClient->nickname);
+                    thisClient->isConnected = false;
                     break;
                 }
                 impostaTimerSocket(thisClient->socketfd, 0); //  elimina timer socket
@@ -634,6 +653,7 @@ void *gestisciClient(void *arg)
                 checkerror = pthread_create(&tid, NULL, checkConnectionClient, (void*)thisClient);
                 if(checkerror != 0){
                     fprintf(stderr,"Client %s, errore creazione thread checkConnectionClient: %s\n", thisClient->nickname, strerror(checkerror));
+                    thisClient->isConnected = false;
                     break;
                 }
 
@@ -709,6 +729,7 @@ void *gestisciClient(void *arg)
                 bytesScritti = safeWrite(thisClient->socketfd, "OK", 2);
                 if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
                     fprintf(stderr, "[26] Errore scrittura 'OK' client %s\n", thisClient->nickname);
+                    thisClient->isConnected = false;
                     break;
                 }
 
@@ -751,7 +772,7 @@ void *gestisciClient(void *arg)
                 /* Il client è ancora connesso */
                 if(thisClient->isConnected)
                 {
-                    fprintf(stderr, "Client ancora connesso %s\n", thisClient->nickname);
+                    fprintf(stderr, "Client %s ancora connesso.\n", thisClient->nickname);
                     /* Il server invia un feedback al client "OK" */
                     bytesScritti = safeWrite(thisClient->socketfd, "OK", 2);
                     if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
@@ -768,13 +789,13 @@ void *gestisciClient(void *arg)
                         fprintf(stderr, "[30] Errore lettura feedback client %s\n", thisClient->nickname);
                         thisClient->isConnected = false;
                     }
-                    impostaTimerSocket(thisClient->socketfd, 0); //  elimina timer
+                    impostaTimerSocket(thisClient->socketfd, 0); // elimina timer socket
                 }
             }
         }
         else if(input == 2) // Il client ha scelto di uscire dal server
         { 
-            fprintf(stderr, "Il client %s esce dal server\n", thisClient->nickname);
+            fprintf(stderr, "Il client %s esce dal server.\n", thisClient->nickname);
             thisClient->isConnected = false;
         }
         else // ERROR case
@@ -996,7 +1017,7 @@ void *gestisciChat(void *arg)
                             stopChat = true;
                         }
 
-                        /* Scrivi messaggio al Client 1*/
+                        /* Scrivi messaggio al Client 1 */
                         bytesScritti = safeWrite(sfd1, buffer, 1024);
                         if(bytesScritti != 1024){ // Errore scrittura
                             fprintf(stderr, "[5c] Errore chat scrittura client %s\n", Client1->address);
