@@ -116,10 +116,10 @@ int main(int argc, char **argv)
     }
 
     /* Invio operazione ('1' oppure '2') al server */
-    bool checkInput;
-    int input;
-
-    do {
+    int inputOperazione;
+    do 
+    {
+        bool checkInput;
         do {
             do {
                 memset(buffer, '\0', bufsize);
@@ -132,7 +132,10 @@ int main(int argc, char **argv)
                 }else{
                     printf("Input errato, riprova.\n");
                 }
-            } while(!checkInput);
+            }while(!checkInput);
+
+            /* Salva input operazione */
+            inputOperazione = buffer[0] - '0';
 
             /* Scrittura operazione al server */
             bytesScritti = safeWrite(socketfd, buffer, 1);
@@ -142,8 +145,6 @@ int main(int argc, char **argv)
                 checkS(checkerror, "Errore chiusura socket", -1);
                 exit(EXIT_FAILURE);
             }
-
-            input = buffer[0] - '0'; // Salva input
 
             /* Cattura feedback dal server ("OK" oppure "IN") */
             memset(buffer, '\0', bufsize);
@@ -176,7 +177,7 @@ int main(int argc, char **argv)
             exit(EXIT_FAILURE);
         }
 
-        if(input == 1){ // visualizza stanze e cerca una chat
+        if(inputOperazione == 1){ // visualizza stanze e cerca una chat
 
             // LETTURA NUMERO STANZE
             memset(buffer, '\0', bufsize);
@@ -297,7 +298,7 @@ int main(int argc, char **argv)
                     }
                 } while(!checkInput);
 
-                /* Scrittura operazione al server */
+                /* Scrittura input stanza al server */
                 bytesScritti = safeWrite(socketfd, buffer, 1);
                 if(bytesScritti != 1){
                     checkerror = close(socketfd);
@@ -306,7 +307,7 @@ int main(int argc, char **argv)
                     exit(EXIT_FAILURE);
                 }
 
-                input = (buffer[0] - '0') - 1; // Salva input
+                //input = (buffer[0] - '0') - 1; // Salva input
 
                 /* Cattura feedback dal server ("OK" oppure "IN") */
                 memset(buffer, '\0', bufsize);
@@ -501,15 +502,15 @@ int main(int argc, char **argv)
             }
 
         }
-        else if(input == 2) // esci dal server
+        else if(inputOperazione == 2) // esci dal server
         { 
             printf("Uscita dal server.\n");
             break;
         }
 
-        fprintf(stderr, "Input: %d Checkerror: %d\n", input, checkerror);
+        fprintf(stderr, "Input: %d Checkerror: %d\n", inputOperazione, checkerror);
 
-    } while(input+1 == 1 && checkerror != -1); // Continua fino a quando non si verificano errori e l'input è diverso da uno
+    } while(inputOperazione == 1 && checkerror != -1); // Continua fino a quando non si verificano errori e l'input è diverso da uno
 
     /* Chiusura socket */
     fprintf(stderr, "Chiusura connessione\n");

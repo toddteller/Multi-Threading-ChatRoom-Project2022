@@ -191,12 +191,10 @@ Match *searchCouple(Queue *Q, nodoQueue *actual, nodoQueue *actualprev, nodoQueu
 
         if(cond_a && cond_b && (cond_c || cond_d)) // Coppia non valida
         {
-            fprintf(stderr, "coppia non trovata funzione\n");
             matchFound = searchCouple(Q, actual->next, actual, head, headprev);
         }
         else // Coppia valida
         {
-            fprintf(stderr, "coppia trovata funzione\n");
             matchFound = (Match*)malloc(sizeof(matchFound));
             if(matchFound == NULL)
                 fprintf(stderr,"Errore allocazione match searchCouple()");
