@@ -762,9 +762,8 @@ void *gestisciClient(void *arg)
                         fprintf(stderr,"Errore %s pthread_join client %s\n", strerror(checkerror), thisClient->nickname);
                     }
                 }
-
                 /* Continua se il client non si è disconesso e non ha interrotto l'attesa */
-                if(!thisClient->stopWaiting)
+                else
                 {
                     /* Il server invia un feedback al client "OK": risveglia client, chat avviata */
                     fprintf(stderr, "Messaggio 'OK' sblocco inviato al client %s.\n", thisClient->nickname);
@@ -984,10 +983,18 @@ void *gestisciChat(void *arg)
 
         /* SELECT con controllo */
         checkerror = select(nfds, &fds, NULL, NULL, &tv);
-        if(checkerror <= 0) // ERRORE select
+        if(checkerror <= 0) // ERRORE SELECT (Chat timedout, select timedout oppure ERRORE)
         {
-            if(checkerror != 0) fprintf(stderr,"Errore select\n");
-            else fprintf(stderr,"select timedout\n");
+            if(checkerror == 0)
+            {
+                fprintf(stderr,"SELECT timedout chat: %s|%s.\n", Client1->nickname, Client2->nickname);
+            } 
+            else if(errno == EINTR) // Chat timedout
+            {
+                fprintf(stderr,"Chat timedout %s|%s.\n", Client1->nickname, Client2->nickname);
+            }
+            else fprintf(stderr,"ERROR SELECT chat: %s|%s.\n", Client1->nickname, Client2->nickname);
+
             strncpy(buffer, stop, 5); // setta messaggio di uscita
             // scrivi messaggio di uscita al Client 1
             bytesScritti = safeWrite(sfd1, buffer, 1024);
