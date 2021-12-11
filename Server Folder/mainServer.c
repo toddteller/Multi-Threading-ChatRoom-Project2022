@@ -10,8 +10,8 @@
 #define SERVER_BACKLOG 10 // Massimo numero di connessioni 
 
 /* Funzioni controllo errori */
-void checkT(int valueToCheck, const char *s, int successValue); // Genericamente per threads
-void checkS(int valueToCheck, const char *s, int unsuccessValue); // Genericamente per socket
+void check_strerror(int valueToCheck, const char *s, int successValue); // Genericamente per threads
+void check_perror(int valueToCheck, const char *s, int unsuccessValue); // Genericamente per socket
 
 /* Funzioni di avvio threads */
 void *gestisciRoom(void *arg);
@@ -20,7 +20,7 @@ void *gestisciChat(void *arg);
 void *checkConnectionClient(void *arg);
 
 /* Variabili globali server */
-ListNicknames *listaNicknames; // Puntatore globale per accesso alla lista di nicknames dei clients del server
+ListNicknames *listaNicknames; // Puntatore globale per accesso alla lista di nicknames dei clients connessi al server
 Room stanzeServer[MAX_NUM_ROOMS]; // Array di stanze del server globale
 
 int main(void)
@@ -45,9 +45,9 @@ int main(void)
         exit(EXIT_FAILURE);
     }
     checkerror = pthread_attr_init(attributi_thread);
-    checkT(checkerror, "Errore init attr thread main", 0);
+    check_strerror(checkerror, "Errore init attr thread main", 0);
     checkerror = pthread_attr_setdetachstate(attributi_thread, PTHREAD_CREATE_DETACHED);
-    checkT(checkerror, "Errore setdetachstate main", 0);
+    check_strerror(checkerror, "Errore setdetachstate main", 0);
 
     /* Inizializzazione attributi mutex */
     pthread_mutexattr_t *attributi_mutex;
@@ -57,9 +57,9 @@ int main(void)
         exit(EXIT_FAILURE);
     }
     checkerror = pthread_mutexattr_init(attributi_mutex);
-    checkT(checkerror, "Errore mutexattrinit main", 0);
+    check_strerror(checkerror, "Errore mutexattrinit main", 0);
     checkerror = pthread_mutexattr_settype(attributi_mutex, PTHREAD_MUTEX_ERRORCHECK);
-    checkT(checkerror, "Errore mutexattrsettype main", 0);
+    check_strerror(checkerror, "Errore mutexattrsettype main", 0);
 
     /* Definizione stanze e creazione threads stanze, funzione di avvio gestisciRoom() */
     pthread_t threadID_room[MAX_NUM_ROOMS];
@@ -67,11 +67,11 @@ int main(void)
     {
             // inizializzazione stanza i-esima
             checkerror = initRoom(&stanzeServer[i], i, roomName[i], MAX_CLIENTS_ROOM, 0, attributi_mutex);
-            checkT(checkerror, "Errore initRoom main", 0);
+            check_strerror(checkerror, "Errore initRoom main", 0);
 
             // creazione thread i-esimo, funzione di avvio gestisciRoom()
             checkerror = pthread_create(&threadID_room[i], attributi_thread, gestisciRoom, (void*)&stanzeServer[i]);
-            checkT(checkerror, "Errore creazione thread gestisciRoom", 0);
+            check_strerror(checkerror, "Errore creazione thread gestisciRoom", 0);
     }
 
     /* Inizializzazione lista nicknames dei clients */
@@ -81,7 +81,7 @@ int main(void)
         exit(EXIT_FAILURE);
     }
     checkerror = initListNicknames(listaNicknames, attributi_mutex);
-    checkT(checkerror, "Errore initListNicknames", 0);
+    check_strerror(checkerror, "Errore initListNicknames", 0);
 
     /* Inizializzazione dati client */
     struct sockaddr_in indirizzoClient;
@@ -94,7 +94,7 @@ int main(void)
     /* Setup e apertura connessione */
     int socketServer;
     socketServer = setupConnection(PORT, SERVER_BACKLOG);
-    checkS(socketServer, "Errore setup connection main", -1);
+    check_perror(socketServer, "Errore setup connection main", -1);
 
     /* Accetta nuove connessioni */
     while(1){
@@ -102,7 +102,7 @@ int main(void)
 
         // accetta nuova connessione
         socketClient = accept(socketServer, (struct sockaddr*)&indirizzoClient, (socklen_t*)&indirizzo_size);
-        checkS(socketClient, "Errore accept new connection", -1);
+        check_perror(socketClient, "Errore accept new connection", -1);
 
         // conversione indirizzo in stringa formato dotted
         indirizzoClient_str = inet_ntoa(indirizzoClient.sin_addr);
@@ -114,32 +114,32 @@ int main(void)
             exit(EXIT_FAILURE);
         }
         checkerror = initClient(newClient, socketClient, indirizzoClient_str, attributi_mutex);
-        checkT(checkerror, "Errore initClient main", 0);
+        check_strerror(checkerror, "Errore initClient main", 0);
 
         // creazione thread funzione di avvio gestisciClient()
         checkerror = pthread_create(&clientTID, attributi_thread, gestisciClient, (void*)newClient);
-        checkT(checkerror, "Errore creazione thread gestisciClient", 0);
+        check_strerror(checkerror, "Errore creazione thread gestisciClient", 0);
     }
 
     fprintf(stderr, "Chiusura server.\n");
 
     /* Distruzione attributi thread */
     checkerror = pthread_attr_destroy(attributi_thread);
-    checkT(checkerror, "Errore threadattrdestroy main", 0);
+    check_strerror(checkerror, "Errore threadattrdestroy main", 0);
     free(attributi_thread);
 
     /* Distruzione attributi mutex */
     checkerror = pthread_mutexattr_destroy(attributi_mutex);
-    checkT(checkerror, "Errore mutexattrdestroy main", 0);
+    check_strerror(checkerror, "Errore mutexattrdestroy main", 0);
     free(attributi_mutex);
 
     /* Distruzione lista nicknames */
     checkerror = destroyListNicknames(listaNicknames);
-    checkT(checkerror, "Errore destroyListNicknames", 0);
+    check_strerror(checkerror, "Errore destroyListNicknames", 0);
 
     /* Chiusura socket Server */
     checkerror = close(socketServer);
-    checkS(checkerror, "Errore chiusura socket Server", -1);
+    check_perror(checkerror, "Errore chiusura socket Server", -1);
 
     exit(EXIT_SUCCESS);
 }
@@ -180,62 +180,70 @@ void *gestisciRoom(void *arg)
         }
         else
         { 
-            /* Cerca coppia client */
+            /* Cerca una coppia di client da mettere in comunicazione */
             fprintf(stderr, "Cerca coppia client: %s", Stanza->roomName);
 
             Match *matchFound = NULL; // coppia di client
-            nodoQueue *head, *headprev, *actual, *actualprev;
+            matchFound = searchCouple(Stanza->Q, Stanza->Q->head->next, Stanza->Q->head, Stanza->Q->head, NULL); // cerca coppia client coda 
 
-            int i = 0;           
-            head = Stanza->Q->head;
-            headprev = NULL; 
-            actual = Stanza->Q->head->next; 
-            actualprev = Stanza->Q->head;
-
-            do
-            {
-                matchFound = searchCouple(Stanza->Q, actual, actualprev, head, headprev);
-                headprev = head;
-                head = head->next;
-                actualprev = actual;
-                actual = actual->next;
-                i += 1;
-            }while(i < Stanza->Q->numeroClients-1 && matchFound == NULL); 
-
-            if(matchFound == NULL){ // Coppia client non trovata: ritorna in attesa
+            if(matchFound == NULL) // Coppia client non trovata: ritorna in attesa
+            { 
                 fprintf(stderr, "Coppia client non trovata: %s", Stanza->roomName);
-                notFound = true;
+                notFound = true; // non trovata
             }
             else // Coppia client trovata
             { 
-                fprintf(stderr, "Coppia client trovata: %s", Stanza->roomName);
-                notFound = false;
+                notFound = false; // trovata
 
                 Client *Client1 = matchFound->couplantClient1;
                 Client *Client2 = matchFound->couplantClient2;
 
+                fprintf(stderr, "Coppia client trovata: %s|%s. Stanza %s", Client1->nickname, Client2->nickname, Stanza->roomName);
+
                 if(!Client1->isConnected && !Client2->isConnected){ // Entrambi i clients si sono disconnessi: ritorna in attesa
+                    /* Comunica a gestisciClient() che i due clients disconnessi sono stati già eliminati dalla coda */
+                    fprintf(stderr, "Client %s e Client %s si sono disconessi, ritorno in attesa stanza: %s", Client1->nickname, Client2->nickname, Stanza->roomName);
                     Client1->deletedFromQueue = true; // Client 1 cancellato dalla coda
                     Client2->deletedFromQueue = true; // Client 2 cancellato dalla coda
                     Stanza->numClients -= 2; // decrementa numero clients della stanza
                 }
                 else if(!Client1->isConnected){ // Client 1 si è disconnesso: ritorna in attesa
+                    fprintf(stderr, "Client %s si è disconesso. Riaccoda Client %s, ritorno in attesa stanza: %s", Client1->nickname, Client2->nickname, Stanza->roomName);
+                    /* Comunica a gestisciClient() che Client1 è stato già eliminato dalla coda */
                     Client1->deletedFromQueue = true; // Client 1 cancellato dalla coda
                     Stanza->numClients -= 1; // decrementa numero clients della stanza
                     enqueue(Stanza->Q, Client2); // riaccoda client 2
                 }
                 else if(!Client2->isConnected){ // Client 2 si è disconnesso: ritorna in attesa
+                    fprintf(stderr, "Client %s si è disconesso. Riaccoda Client %s, ritorno in attesa stanza: %s", Client2->nickname, Client1->nickname, Stanza->roomName);
+                    /* Comunica a gestisciClient() che Client2 è stato già eliminato dalla coda */
                     Client2->deletedFromQueue = true; // Client 2 cancellato dalla coda
                     Stanza->numClients -= 1; // decrementa numero clients della stanza
                     enqueue(Stanza->Q, Client1); // riaccoda client 1
                 }
                 else // Entrambi i client sono connessi: avvio chat
                 { 
-                    fprintf(stderr, "Coppia valida: %s", Stanza->roomName);
+                    fprintf(stderr, "Coppia valida: %s|%s. Stanza %s", Client1->nickname, Client2->nickname, Stanza->roomName);
 
-                    /* Aggiorna info Client 1 e Client 2*/
-                    Client1->matchedRoom_id = Stanza->idRoom; 
-                    Client2->matchedRoom_id = Stanza->idRoom;
+                    /* Notifica Client 1 e Client 2: non è possibile interrompere l'attesa, match trovato */
+                    ssize_t bytesScritti;
+                    /* Il server invia un feedback al CLIENT 1 "OK" */
+                    bytesScritti = safeWrite(Client1->socketfd, "OK", 2);
+                    if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
+                        fprintf(stderr, "Errore scrittura 'OK' client %s\n", Client1->nickname);
+                        Client1->isConnected = false;
+                    }
+
+                    /* Il server invia un feedback al CLIENT 2 "OK" */
+                    bytesScritti = safeWrite(Client2->socketfd, "OK", 2);
+                    if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
+                        fprintf(stderr, "Errore scrittura 'OK' client %s\n", Client2->nickname);
+                        Client2->isConnected = false;
+                    }
+
+                    /* Aggiorna info Client 1 e Client 2: matchedRoom */
+                    Client1->matchedRoomID = Stanza->idRoom; 
+                    Client2->matchedRoomID = Stanza->idRoom;
 
                     /* Inizializzazione attributi thread gestisciChat() */
                     pthread_t tid;
@@ -248,6 +256,7 @@ void *gestisciRoom(void *arg)
                     }
 
                     /* Avvia thread chat */
+                    fprintf(stderr, "Creazione thread gestisciChat tra %s|%s, stanza %s", Client1->nickname, Client2->nickname, Stanza->roomName);
                     checkerror = pthread_create(&tid, attributi_thread, gestisciChat, (void*)matchFound);
                     if(checkerror != 0) fprintf(stderr, "Errore avvio chat room\n");
                 }
@@ -262,7 +271,7 @@ void *gestisciRoom(void *arg)
     /* Uscita: distruggi stanza ed esci */
     fprintf(stderr, "Distruggi stanza %s", Stanza->roomName);
     checkerror = destroyRoom(Stanza);
-    checkT(checkerror, "Errore destroyRoom\n", 0);
+    check_strerror(checkerror, "Errore destroyRoom\n", 0);
 
     return NULL;
 }
@@ -359,7 +368,8 @@ void *gestisciClient(void *arg)
     {
         bool checkInput; // Variabile controllo input client
         int input = 0; // Valore inserito dal client
-        thisClient->actualRoom_id = -1; // il client non appartiene a nessuna stanza
+        thisClient->actualRoomID = -1; // il client non appartiene a nessuna stanza
+        thisClient->stopWaiting = false;
 
         do // Ciclo controllo input client
         {
@@ -664,7 +674,7 @@ void *gestisciClient(void *arg)
                 enqueue(stanzeServer[input].Q, thisClient); // inserimento in coda
                 fprintf(stderr, "Client %s inserito in coda nella stanza %s", thisClient->nickname, stanzeServer[input].roomName);
                 stanzeServer[input].numClients += 1; // aumento numero clients della stanza
-                thisClient->actualRoom_id = stanzeServer[input].idRoom; // assegna actual room al client
+                thisClient->actualRoomID = stanzeServer[input].idRoom; // assegna actual room al client
                 checkerror = pthread_cond_signal(stanzeServer[input].cond); // risveglia stanza
                 if(checkerror != 0) fprintf(stderr, "Errore condsignal stanzaServerQueue %s\n", strerror(checkerror));
 
@@ -676,7 +686,7 @@ void *gestisciClient(void *arg)
                 if(checkerror != 0) fprintf(stderr, "Errore mutexlock Client %s\n", strerror(checkerror));
                 
                  // continua fino a quando il client non ha trovato un match o il client si è disconnesso
-                while(!thisClient->isMatched && thisClient->isConnected){
+                while(!thisClient->isMatched && thisClient->isConnected && !thisClient->stopWaiting){
                     fprintf(stderr,"In attesa di un match, client %s.\n", thisClient->nickname); 
                     checkerror = pthread_cond_wait(thisClient->cond, thisClient->mutex);
                     if(checkerror != 0){ // Errore*
@@ -691,7 +701,7 @@ void *gestisciClient(void *arg)
 
                 fprintf(stderr, "Uscito dall'attesa, client %s.\n", thisClient->nickname);
 
-                /* Controlla se il client si è disconnesso */
+                /* Controlla se il client si è disconnesso oppure ha interrotto l'attesa */
                 if(!thisClient->isConnected) // Errore*: il client si è disconnesso o qualcosa è andato storto
                 { 
                     fprintf(stderr, "Client %s disconesso.\n", thisClient->nickname);
@@ -718,78 +728,111 @@ void *gestisciClient(void *arg)
                     // Terminazione thread checkConnectionClient
                     checkerror = pthread_join(tid, NULL);
                     if(checkerror != 0){ // Errore
-                        fprintf(stderr,"Errore %s pthread_timedjoin_np client %s\n", strerror(checkerror), thisClient->nickname);
+                        fprintf(stderr,"Errore %s pthread_join client %s\n", strerror(checkerror), thisClient->nickname);
                     }
                     
                     break;
                 }
-
-                /* Il server invia un feedback al client "OK": risveglia client, chat avviata */
-                fprintf(stderr, "Messaggio 'OK' sblocco inviato al client %s.\n", thisClient->nickname);
-                bytesScritti = safeWrite(thisClient->socketfd, "OK", 2);
-                if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
-                    fprintf(stderr, "[26] Errore scrittura 'OK' client %s\n", thisClient->nickname);
-                    thisClient->isConnected = false;
-                    break;
-                }
-
-                /* Aspetta la terminazione del thread checkConnectionClient */
-                /* Il client dovrebbe inviare 'OK' per terminare il thread checkConnectionClient() */
-                fprintf(stderr,"Aspetto thread checkConnectionClient client %s.\n", thisClient->nickname);
-
-                checkerror = pthread_join(tid, NULL);
-                if(checkerror != 0){ // Errore
-                    fprintf(stderr,"[27] Errore pthread_join client %s\n", thisClient->nickname);
-                    thisClient->isConnected = false;     
-                }
-
-                fprintf(stderr,"Thread checkConnectionClient terminato client %s.\n", thisClient->nickname);
-
-                /* Risveglia thread gestisciChat associato */
-                checkerror = pthread_cond_signal(thisClient->cond);
-                if(checkerror != 0) fprintf(stderr, "Errore condsignal client->chat %s\n", strerror(checkerror));
-
-                /* Il server mette in attesa il client fino alla fine della chat */
-                fprintf(stderr, "Thread Client %s in attesa (chat).\n", thisClient->nickname);
-                checkerror = pthread_mutex_lock(thisClient->mutex); // LOCK THIS CLIENT
-                if(checkerror != 0) fprintf(stderr, "Errore mutexlock Client %s\n", strerror(checkerror));
-
-                while(thisClient->isMatched && thisClient->isConnected)
+                else if(thisClient->stopWaiting) // Il client ha interrotto l'attesa
                 {
-                    fprintf(stderr,"Client %s in attesa chat.\n", thisClient->nickname);
-                    checkerror = pthread_cond_wait(thisClient->cond, thisClient->mutex);
-                    if(checkerror != 0){ // Errore*
-                        fprintf(stderr, "[28] Errore condwait client %s\n", thisClient->nickname);
+                    fprintf(stderr, "Client %s ha interrotto l'attesa: cancella client dalla coda.\n", thisClient->nickname);
+
+                    /* Il server invia un feedback al client "ST": risveglia client, stop waiting */
+                    fprintf(stderr, "Messaggio 'ST' sblocco inviato al client %s.\n", thisClient->nickname);
+                    bytesScritti = safeWrite(thisClient->socketfd, "ST", 2);
+                    if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
+                        fprintf(stderr, "[26] Errore scrittura 'ST' client %s\n", thisClient->nickname);
                         thisClient->isConnected = false;
+                        break;
+                    }
+
+                    checkerror = pthread_mutex_lock(stanzeServer[input].mutex); // LOCK STANZA SCELTA
+                    if(checkerror != 0) fprintf(stderr, "Errore mutexlock stanzeServer client stopwaiting %s\n", strerror(checkerror));
+
+                    // elimina client dalla coda
+                    stanzeServer[input].Q->head = deleteNodeQueue(stanzeServer[input].Q, stanzeServer[input].Q->head, NULL, thisClient->nickname);                                                          
+                    thisClient->deletedFromQueue = true; // client cancellato dalla coda
+
+                    checkerror = pthread_mutex_unlock(stanzeServer[input].mutex); // UNLOCK STANZA SCELTA
+                    if(checkerror != 0) fprintf(stderr, "Errore mutexunlock stanzeServer client stopwaiting %s\n", strerror(checkerror));
+
+                    // Terminazione thread checkConnectionClient
+                    checkerror = pthread_join(tid, NULL);
+                    if(checkerror != 0){ // Errore
+                        fprintf(stderr,"Errore %s pthread_join client %s\n", strerror(checkerror), thisClient->nickname);
                     }
                 }
 
-                checkerror = pthread_mutex_unlock(thisClient->mutex); // UNLOCK THIS CLIENT
-                if(checkerror != 0) fprintf(stderr, "Errore mutexunlock Client %s\n", strerror(checkerror));
-      
-                fprintf(stderr, "Chat terminata per il client %s.\n", thisClient->nickname);
-
-                /* Il client è ancora connesso */
-                if(thisClient->isConnected)
+                /* Continua se il client non si è disconesso e non ha interrotto l'attesa */
+                if(!thisClient->stopWaiting)
                 {
-                    fprintf(stderr, "Client %s ancora connesso.\n", thisClient->nickname);
-                    /* Il server invia un feedback al client "OK" */
+                    /* Il server invia un feedback al client "OK": risveglia client, chat avviata */
+                    fprintf(stderr, "Messaggio 'OK' sblocco inviato al client %s.\n", thisClient->nickname);
                     bytesScritti = safeWrite(thisClient->socketfd, "OK", 2);
                     if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
-                        fprintf(stderr, "[29] Errore scrittura 'OK' client %s\n", thisClient->nickname);
+                        fprintf(stderr, "[27] Errore scrittura 'OK' client %s\n", thisClient->nickname);
                         thisClient->isConnected = false;
+                        break;
                     }
 
-                    /* Il server deve ricevere un feedback "OK" dal client. Se il client viola
-                        questa condizione, la connessione viene chiusa e il thread terminato. */
-                    memset(buffer, '\0', sizeof(buffer));
-                    impostaTimerSocket(thisClient->socketfd, 20); // aspetta max 20 secondi
-                    bytesLetti = safeRead(thisClient->socketfd, buffer, 2);
-                    if(bytesLetti != 2 || strncmp(buffer, "OK", 2) != 0){ // Errore: distruggi client e chiudi thread.
-                        fprintf(stderr, "[30] Errore lettura feedback client %s\n", thisClient->nickname);
-                        thisClient->isConnected = false;
+                    /* Aspetta la terminazione del thread checkConnectionClient */
+                    /* Il client dovrebbe inviare 'OK' per terminare il thread checkConnectionClient() */
+                    fprintf(stderr,"Aspetto thread checkConnectionClient client %s.\n", thisClient->nickname);
+
+                    checkerror = pthread_join(tid, NULL);
+                    if(checkerror != 0){ // Errore
+                        fprintf(stderr,"[28] Errore pthread_join client %s\n", thisClient->nickname);
+                        thisClient->isConnected = false;     
                     }
-                    impostaTimerSocket(thisClient->socketfd, 0); // elimina timer socket
+
+                    fprintf(stderr,"Thread checkConnectionClient terminato client %s.\n", thisClient->nickname);
+
+                    /* Risveglia thread gestisciChat associato */
+                    checkerror = pthread_cond_signal(thisClient->cond);
+                    if(checkerror != 0) fprintf(stderr, "Errore condsignal client->chat %s\n", strerror(checkerror));
+
+                    /* Il server mette in attesa il client fino alla fine della chat */
+                    fprintf(stderr, "Thread Client %s in attesa (chat).\n", thisClient->nickname);
+                    checkerror = pthread_mutex_lock(thisClient->mutex); // LOCK THIS CLIENT
+                    if(checkerror != 0) fprintf(stderr, "Errore mutexlock Client %s\n", strerror(checkerror));
+
+                    while(thisClient->isMatched && thisClient->isConnected)
+                    {
+                        fprintf(stderr,"Client %s in attesa chat.\n", thisClient->nickname);
+                        checkerror = pthread_cond_wait(thisClient->cond, thisClient->mutex);
+                        if(checkerror != 0){ // Errore*
+                            fprintf(stderr, "[29] Errore condwait client %s\n", thisClient->nickname);
+                            thisClient->isConnected = false;
+                        }
+                    }
+
+                    checkerror = pthread_mutex_unlock(thisClient->mutex); // UNLOCK THIS CLIENT
+                    if(checkerror != 0) fprintf(stderr, "Errore mutexunlock Client %s\n", strerror(checkerror));
+        
+                    fprintf(stderr, "Chat terminata per il client %s.\n", thisClient->nickname);
+
+                    /* Il client è ancora connesso */
+                    if(thisClient->isConnected)
+                    {
+                        fprintf(stderr, "Client %s ancora connesso.\n", thisClient->nickname);
+                        /* Il server invia un feedback al client "OK" */
+                        bytesScritti = safeWrite(thisClient->socketfd, "OK", 2);
+                        if(bytesScritti != 2){ // Errore: distruggi client e chiudi thread.
+                            fprintf(stderr, "[30] Errore scrittura 'OK' client %s\n", thisClient->nickname);
+                            thisClient->isConnected = false;
+                        }
+
+                        /* Il server deve ricevere un feedback "OK" dal client. Se il client viola
+                            questa condizione, la connessione viene chiusa e il thread terminato. */
+                        memset(buffer, '\0', sizeof(buffer));
+                        impostaTimerSocket(thisClient->socketfd, 20); // aspetta max 20 secondi
+                        bytesLetti = safeRead(thisClient->socketfd, buffer, 2);
+                        if(bytesLetti != 2 || strncmp(buffer, "OK", 2) != 0){ // Errore: distruggi client e chiudi thread.
+                            fprintf(stderr, "[31] Errore lettura feedback client %s\n", thisClient->nickname);
+                            thisClient->isConnected = false;
+                        }
+                        impostaTimerSocket(thisClient->socketfd, 0); // elimina timer socket
+                    }
                 }
             }
         }
@@ -805,14 +848,15 @@ void *gestisciClient(void *arg)
         }
 
         /* Uscita client dalla stanza, decrementa numero clients stanza */
-        if(thisClient->actualRoom_id != -1) // Se appartiene ad una stanza
+        if(thisClient->actualRoomID != -1) // Se appartiene ad una stanza
         {
-            checkerror = pthread_mutex_lock(stanzeServer[thisClient->actualRoom_id].mutex); // LOCK STANZA SCELTA
+            checkerror = pthread_mutex_lock(stanzeServer[thisClient->actualRoomID].mutex); // LOCK STANZA SCELTA
             if(checkerror != 0) fprintf(stderr, "Errore mutexlock stanze %s\n", strerror(checkerror));
 
-            stanzeServer[thisClient->actualRoom_id].numClients -= 1;
+            fprintf(stderr, "Client %s è uscito dalla stanza %s", thisClient->nickname, stanzeServer[thisClient->actualRoomID].roomName);
+            stanzeServer[thisClient->actualRoomID].numClients -= 1;
 
-            checkerror = pthread_mutex_unlock(stanzeServer[thisClient->actualRoom_id].mutex); // LOCK STANZA SCELTA
+            checkerror = pthread_mutex_unlock(stanzeServer[thisClient->actualRoomID].mutex); // LOCK STANZA SCELTA
             if(checkerror != 0) fprintf(stderr, "Errore mutexunlock stanze %s\n", strerror(checkerror));
         }
 
@@ -836,7 +880,7 @@ void *gestisciClient(void *arg)
     return NULL;
 }
 
-/* Controlla se il client ha chiuso la connessione mentre era in attesa */
+/* Controlla se il client ha chiuso la connessione mentre era in attesa oppure ha interrotto l'attesa */
 void *checkConnectionClient(void *arg)
 {
     Client *thisClient = (Client*)arg;
@@ -844,11 +888,19 @@ void *checkConnectionClient(void *arg)
     int checkerror = 0;
     ssize_t bytesLetti = 0;
 
+    /* Leggi dal client "OK" oppure "ST" */
     bytesLetti = safeRead(thisClient->socketfd, buffer, 2);
-    if(bytesLetti != 2 || strncmp(buffer, "OK", 2) != 0){
+    if(bytesLetti != 2 || (strncmp(buffer, "OK", 2) != 0 && strncmp(buffer, "ST", 2) != 0)){
         fprintf(stderr, "Errore checkConnectionClient %s\n", thisClient->address);
         thisClient->isConnected = false; // Il client si è disconnesso
     }
+
+    /* Il client deciso di interrompere l'attesa */
+    if(strncmp(buffer, "ST", 2) == 0)
+    {
+        thisClient->stopWaiting = true; // stop waiting client
+        fprintf(stderr, "Il client %s ha interrotto l'attesa.\n", thisClient->nickname);
+    } 
 
     /* Risveglia thread gestisciClient() associato a thisClient */
     fprintf(stderr,"Thread checkConnectionClient terminato, risveglia client %s\n", thisClient->nickname);
@@ -877,10 +929,9 @@ void *gestisciChat(void *arg)
     checkerror = pthread_mutex_lock(pairClients->couplantClient2->mutex); // LOCK Client2
     if(checkerror != 0) fprintf(stderr, "Errore mutexlock chat Client2 %s (%s)\n", pairClients->couplantClient2->nickname, strerror(checkerror));
 
+    // Aggiorna info CLIENT 1 CLIENT 2
     Client *Client1 = pairClients->couplantClient1;
     Client *Client2 = pairClients->couplantClient2;
-
-    // Aggiorna info CLIENT 1 CLIENT 2
     Client1->isMatched = true; 
     Client2->isMatched = true; 
     strncpy(Client1->matchedAddress, Client2->address, 15);
@@ -915,9 +966,9 @@ void *gestisciChat(void *arg)
     bool stopChat = false;
     if(Client1->isConnected && Client2->isConnected)
     {
-        fprintf(stderr, "Chat avviata: %s e %s.\n", Client1->nickname, Client2->nickname);
+        fprintf(stderr, "Chat avviata: %s|%s.\n", Client1->nickname, Client2->nickname);
     }
-    else 
+    else // Almeno uno dei due client si è disconesso, chiudi chat. 
     {
         stopChat = true;
     }
@@ -926,14 +977,14 @@ void *gestisciChat(void *arg)
     while(!stopChat && Client1->isConnected && Client2->isConnected)
     {
         FD_ZERO(&fds);
-        FD_SET(sfd1, &fds);
-        FD_SET(sfd2, &fds);  
+        FD_SET(sfd1, &fds); // socket file descriptor Client 1
+        FD_SET(sfd2, &fds);  // socket file descriptor Client 2
     
         tv.tv_sec = 30; // 30 secondi massimo select
 
         /* SELECT con controllo */
         checkerror = select(nfds, &fds, NULL, NULL, &tv);
-        if(checkerror <= 0) // errore select
+        if(checkerror <= 0) // ERRORE select
         {
             if(checkerror != 0) fprintf(stderr,"Errore select\n");
             else fprintf(stderr,"select timedout\n");
@@ -950,9 +1001,10 @@ void *gestisciChat(void *arg)
                 fprintf(stderr, "[select] Errore chat scrittura client %s\n", Client2->address);
                 Client2->isConnected = false;
             }
-            stopChat = true;
+
+            stopChat = true; // chiudi chat 
         }
-        else // select
+        else // SELECT WAS SUCCESSFUL
         {
             for(int fd=0; fd < nfds; fd++)
             {
@@ -1052,16 +1104,16 @@ void *gestisciChat(void *arg)
     return NULL;
 }
 
-/* Funzione controllo errori */
-void checkT(int valueToCheck, const char *s, int successValue){
+/* Funzione controllo errori con strerror */
+void check_strerror(int valueToCheck, const char *s, int successValue){
     if(valueToCheck != successValue){
         fprintf(stderr, "%s: %s\n", s, strerror(valueToCheck));
         exit(EXIT_FAILURE);
     }
 }
 
-/* Funzione controllo errori */
-void checkS(int valueToCheck, const char *s, int unsuccessValue){
+/* Funzione controllo errori con perror */
+void check_perror(int valueToCheck, const char *s, int unsuccessValue){
     if(valueToCheck == unsuccessValue){
         perror(s);
         exit(EXIT_FAILURE);

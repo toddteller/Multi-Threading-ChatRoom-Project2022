@@ -12,6 +12,7 @@
 #include <malloc.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <pthread.h>
 
 typedef struct{
     char roomName[16];
@@ -19,15 +20,19 @@ typedef struct{
     int numClients;
 } Room;
 
-/* Funzioni controllo errori */
-void checkS(int valueToCheck, const char *s, int unsuccessValue); //socket
+/* Funzioni controllo errori con perror */
+void check_perror(int valueToCheck, const char *s, int unsuccessValue); //socket
+/* Funzione controllo errori con strerror */
+void check_strerror(int valueToCheck, const char *s, int successValue);
 
 /* Funzioni lettura e scrittura completa e safe */
 ssize_t safeRead(int fd, void *buf, size_t count);
 ssize_t safeWrite(int fd, const void *buf, size_t count);
 
+/* Controlla se il client digita 'STOP' per interrompere l'attesa */
+void* checkStopWaiting(void *arg);
 /* Costruisce il messaggio prima di inviarlo */
-void buildMessage(char *output, char *messaggio, char *nickname);
+void buildMessageChat(char *output, char *messaggio, char *nickname);
 
 /* FUNZIONI UI - USER INTERFACE*/
 /* Stampa un carattere 'count' volte */
@@ -65,10 +70,10 @@ int main(int argc, char **argv)
     inet_aton(argv[1], &indirizzo.sin_addr);
 
     socketfd = socket(PF_INET, SOCK_STREAM, 0);
-    checkS(socketfd, "Errore socket()", -1);
+    check_perror(socketfd, "Errore socket()", -1);
 
     checkerror = connect(socketfd, (struct sockaddr*)&indirizzo, sizeof(indirizzo));
-    checkS(checkerror, "Errore connect()", -1);
+    check_perror(checkerror, "Errore connect()", -1);
 
     ssize_t bytesScritti = 0;
     ssize_t bytesLetti = 0;
@@ -80,7 +85,7 @@ int main(int argc, char **argv)
     if(bytesScritti != 16){ // Errore: chiusura socket ed esci dal programma
         fprintf(stderr, "Errore scrittura nickname\n");
         checkerror = close(socketfd);
-        checkS(checkerror, "Errore chiusura socket", -1);
+        check_perror(checkerror, "Errore chiusura socket", -1);
         exit(EXIT_FAILURE);
     }
 
@@ -90,19 +95,19 @@ int main(int argc, char **argv)
     if(bytesLetti != 2){
         checkerror = close(socketfd);
         fprintf(stderr, "[1] Errore lettura feedback\n");
-        checkS(checkerror, "Errore chiusura socket", -1);
+        check_perror(checkerror, "Errore chiusura socket", -1);
         exit(EXIT_FAILURE);
     }
     else if(strncmp(buffer, "EX", 2) == 0){ // Il client ha ricevuto 'EX': nickname già esistente
         fprintf(stderr, "Il nickname inserito esiste già!\n");
         checkerror = close(socketfd);
-        checkS(checkerror, "Errore chiusura socket", -1);
+        check_perror(checkerror, "Errore chiusura socket", -1);
         exit(EXIT_FAILURE);
     }
     else if(strncmp(buffer, "OK", 2) != 0){ // Il client non ha ricevuto 'OK': errore
         checkerror = close(socketfd);
         fprintf(stderr, "[2] Errore lettura feedback\n");
-        checkS(checkerror, "Errore chiusura socket", -1);
+        check_perror(checkerror, "Errore chiusura socket", -1);
         exit(EXIT_FAILURE);
     }
 
@@ -111,7 +116,7 @@ int main(int argc, char **argv)
     if(bytesScritti != 2){
         checkerror = close(socketfd);
         fprintf(stderr, "[3] Errore scrittura feedback\n");
-        checkS(checkerror, "Errore chiusura socket", -1);
+        check_perror(checkerror, "Errore chiusura socket", -1);
         exit(EXIT_FAILURE);
     }
 
@@ -142,7 +147,7 @@ int main(int argc, char **argv)
             if(bytesScritti != 1){
                 checkerror = close(socketfd);
                 fprintf(stderr, "[4] Errore scrittura feedback\n");
-                checkS(checkerror, "Errore chiusura socket", -1);
+                check_perror(checkerror, "Errore chiusura socket", -1);
                 exit(EXIT_FAILURE);
             }
 
@@ -152,7 +157,7 @@ int main(int argc, char **argv)
             if(bytesLetti != 2){
                 checkerror = close(socketfd);
                 fprintf(stderr, "Errore lettura feedback\n");
-                checkS(checkerror, "Errore chiusura socket", -1);
+                check_perror(checkerror, "Errore chiusura socket", -1);
                 exit(EXIT_FAILURE);
             }
             else if(strncmp(buffer, "IN", 2) == 0){ // Il client ha ricevuto 'IN': input errato
@@ -162,7 +167,7 @@ int main(int argc, char **argv)
             else if(strncmp(buffer, "OK", 2) != 0){ // Il client non ha ricevuto 'OK': errore
                 checkerror = close(socketfd);
                 fprintf(stderr, "Errore lettura feedback\n");
-                checkS(checkerror, "Errore chiusura socket", -1);
+                check_perror(checkerror, "Errore chiusura socket", -1);
                 exit(EXIT_FAILURE);
             }
 
@@ -173,7 +178,7 @@ int main(int argc, char **argv)
         if(bytesScritti != 2){
             checkerror = close(socketfd);
             fprintf(stderr, "Errore scrittura feedback\n");
-            checkS(checkerror, "Errore chiusura socket", -1);
+            check_perror(checkerror, "Errore chiusura socket", -1);
             exit(EXIT_FAILURE);
         }
 
@@ -185,7 +190,7 @@ int main(int argc, char **argv)
             if(bytesLetti != 1){
                 checkerror = close(socketfd);
                 fprintf(stderr, "Errore lettura feedback\n");
-                checkS(checkerror, "Errore chiusura socket", -1);
+                check_perror(checkerror, "Errore chiusura socket", -1);
                 exit(EXIT_FAILURE);
             }
 
@@ -197,7 +202,7 @@ int main(int argc, char **argv)
             if(bytesScritti != 2){
                 checkerror = close(socketfd);
                 fprintf(stderr, "Errore scrittura feedback\n");
-                checkS(checkerror, "Errore chiusura socket", -1);
+                check_perror(checkerror, "Errore chiusura socket", -1);
                 exit(EXIT_FAILURE);
             }
 
@@ -210,7 +215,7 @@ int main(int argc, char **argv)
                 if(bytesLetti != 16){
                     checkerror = close(socketfd);
                     fprintf(stderr, "Errore lettura feedback\n");
-                    checkS(checkerror, "Errore chiusura socket", -1);
+                    check_perror(checkerror, "Errore chiusura socket", -1);
                     exit(EXIT_FAILURE);
                 }
 
@@ -221,7 +226,7 @@ int main(int argc, char **argv)
                 if(bytesScritti != 2){
                     checkerror = close(socketfd);
                     fprintf(stderr, "Errore scrittura feedback\n");
-                    checkS(checkerror, "Errore chiusura socket", -1);
+                    check_perror(checkerror, "Errore chiusura socket", -1);
                     exit(EXIT_FAILURE);
                 }
 
@@ -231,7 +236,7 @@ int main(int argc, char **argv)
                 if(bytesLetti != 1){
                     checkerror = close(socketfd);
                     fprintf(stderr, "Errore lettura feedback\n");
-                    checkS(checkerror, "Errore chiusura socket", -1);
+                    check_perror(checkerror, "Errore chiusura socket", -1);
                     exit(EXIT_FAILURE);
                 }
 
@@ -242,7 +247,7 @@ int main(int argc, char **argv)
                 if(bytesScritti != 2){
                     checkerror = close(socketfd);
                     fprintf(stderr, "Errore scrittura feedback\n");
-                    checkS(checkerror, "Errore chiusura socket", -1);
+                    check_perror(checkerror, "Errore chiusura socket", -1);
                     exit(EXIT_FAILURE);
                 }
 
@@ -252,7 +257,7 @@ int main(int argc, char **argv)
                 if(bytesLetti != 1){
                     checkerror = close(socketfd);
                     fprintf(stderr, "Errore lettura feedback\n");
-                    checkS(checkerror, "Errore chiusura socket", -1);
+                    check_perror(checkerror, "Errore chiusura socket", -1);
                     exit(EXIT_FAILURE);
                 }
 
@@ -263,7 +268,7 @@ int main(int argc, char **argv)
                 if(bytesScritti != 2){
                     checkerror = close(socketfd);
                     fprintf(stderr, "Errore scrittura feedback\n");
-                    checkS(checkerror, "Errore chiusura socket", -1);
+                    check_perror(checkerror, "Errore chiusura socket", -1);
                     exit(EXIT_FAILURE);
                 }
             }// end for
@@ -274,7 +279,7 @@ int main(int argc, char **argv)
             if(bytesLetti != 2 || strncmp(buffer, "OK", 2) != 0){
                 checkerror = close(socketfd);
                 fprintf(stderr, "Errore lettura feedback\n");
-                checkS(checkerror, "Errore chiusura socket", -1);
+                check_perror(checkerror, "Errore chiusura socket", -1);
                 exit(EXIT_FAILURE);
             }
 
@@ -303,7 +308,7 @@ int main(int argc, char **argv)
                 if(bytesScritti != 1){
                     checkerror = close(socketfd);
                     fprintf(stderr, "Errore scrittura feedback\n");
-                    checkS(checkerror, "Errore chiusura socket", -1);
+                    check_perror(checkerror, "Errore chiusura socket", -1);
                     exit(EXIT_FAILURE);
                 }
 
@@ -315,7 +320,7 @@ int main(int argc, char **argv)
                 if(bytesLetti != 2){
                     checkerror = close(socketfd);
                     fprintf(stderr, "Errore lettura feedback\n");
-                    checkS(checkerror, "Errore chiusura socket", -1);
+                    check_perror(checkerror, "Errore chiusura socket", -1);
                     exit(EXIT_FAILURE);
                 }
                 else if(strncmp(buffer, "IN", 2) == 0){ // Il client ha ricevuto 'IN': input errato
@@ -325,7 +330,7 @@ int main(int argc, char **argv)
                 else if(strncmp(buffer, "OK", 2) != 0){ // Il client non ha ricevuto 'OK': errore
                     checkerror = close(socketfd);
                     fprintf(stderr, "Errore lettura feedback\n");
-                    checkS(checkerror, "Errore chiusura socket", -1);
+                    check_perror(checkerror, "Errore chiusura socket", -1);
                     exit(EXIT_FAILURE);
                 }
             } while(!checkInput);
@@ -335,7 +340,7 @@ int main(int argc, char **argv)
             if(bytesScritti != 2){
                 checkerror = close(socketfd);
                 fprintf(stderr, "Errore scrittura feedback\n");
-                checkS(checkerror, "Errore chiusura socket", -1);
+                check_perror(checkerror, "Errore chiusura socket", -1);
                 exit(EXIT_FAILURE);
             }
 
@@ -346,7 +351,7 @@ int main(int argc, char **argv)
             if(bytesLetti != 2){
                 checkerror = close(socketfd);
                 fprintf(stderr, "Errore lettura feedback\n");
-                checkS(checkerror, "Errore chiusura socket", -1);
+                check_perror(checkerror, "Errore chiusura socket", -1);
                 exit(EXIT_FAILURE);
             }
             else if(strncmp(buffer, "FU", 2) == 0){ // Il client ha ricevuto 'FU': stanza piena
@@ -356,7 +361,7 @@ int main(int argc, char **argv)
             else if(strncmp(buffer, "OK", 2) != 0){ // Il client non ha ricevuto 'OK': errore
                 checkerror = close(socketfd);
                 fprintf(stderr, "Errore lettura feedback\n");
-                checkS(checkerror, "Errore chiusura socket", -1);
+                check_perror(checkerror, "Errore chiusura socket", -1);
                 exit(EXIT_FAILURE);
             }
 
@@ -367,138 +372,182 @@ int main(int argc, char **argv)
                 if(bytesScritti != 2){
                     checkerror = close(socketfd);
                     fprintf(stderr, "Errore scrittura feedback\n");
-                    checkS(checkerror, "Errore chiusura socket", -1);
+                    check_perror(checkerror, "Errore chiusura socket", -1);
                     exit(EXIT_FAILURE);
                 }
 
-                /* Cattura feedback dal server ('OK') */
+                /* Inizializzazione attributi thread checkStopWaiting */
+                pthread_attr_t *attributi_thread;
+                attributi_thread = (pthread_attr_t*)malloc(sizeof(pthread_attr_t));
+                if(attributi_thread == NULL){
+                    fprintf(stderr, "Errore allocazione attributi thread\n");
+                    exit(EXIT_FAILURE);
+                }
+                checkerror = pthread_attr_init(attributi_thread);
+                check_strerror(checkerror, "Errore init attr thread", 0);
+                checkerror = pthread_attr_setdetachstate(attributi_thread, PTHREAD_CREATE_DETACHED);
+                check_strerror(checkerror, "Errore setdetachstate", 0);
+
+                /* Creazione thread checkStopWaiting: controlla se il client digita STOP per interrompere l'attesa */
+                pthread_t TIDstopWait;
+                checkerror = pthread_create(&TIDstopWait, attributi_thread, checkStopWaiting, (void*)&socketfd); // passaggio socket
+                check_strerror(checkerror, "Errore pthread create thread", 0);
+
+                /* Cattura feedback dal server ('NS' oppure 'ST') */
                 memset(buffer, '\0', bufsize);
                 bytesLetti = safeRead(socketfd, buffer, 2);
-                if(bytesLetti != 2 || strncmp(buffer, "OK", 2) != 0){
+                if(bytesLetti != 2 || (strncmp(buffer, "OK", 2) != 0 && strncmp(buffer, "ST", 2) != 0)){
                     checkerror = close(socketfd);
                     fprintf(stderr, "Errore lettura feedback\n");
-                    checkS(checkerror, "Errore chiusura socket", -1);
+                    check_perror(checkerror, "Errore chiusura socket", -1);
                     exit(EXIT_FAILURE);
                 }
+                
+                /* Se il client non ha interrotto l'attesa -> avvia chat */
+                if(strncmp(buffer, "ST", 2) != 0)
+                {
+                    /* Cancella thread checkStopWaiting */
+                    checkerror = pthread_cancel(TIDstopWait); 
+                    check_strerror(checkerror, "Errore pthread create thread", 0);
 
-                /* Scrittura feedback al server ('OK' - termina checkConnectionClient() lato server) */
-                bytesScritti = safeWrite(socketfd, "OK", 2);
-                if(bytesScritti != 2){
-                    checkerror = close(socketfd);
-                    fprintf(stderr, "Errore scrittura feedback\n");
-                    checkS(checkerror, "Errore chiusura socket", -1);
-                    exit(EXIT_FAILURE);
-                }
-
-                // /* Elimina eventuali caratteri dallo STDIN */
-                // checkerror = fcntl(STDIN_FILENO, F_SETFL, (fcntl(STDIN_FILENO, F_GETFD)|O_NONBLOCK));
-                // if(checkerror!=0) fprintf(stderr,"Error fcntl\n");
-                // while((checkerror = read(STDIN_FILENO, buffer, 1)) != 0);
-                // if(checkerror!=0) fprintf(stderr,"Error cleaning stdin %d\n", checkerror);
-                // memset(buffer, '\0', malloc_usable_size(buffer));
-                // checkerror = fcntl(STDIN_FILENO, F_SETFL, (fcntl(STDIN_FILENO, F_GETFD)|!O_NONBLOCK));
-                // if(checkerror!=0) fprintf(stderr,"Error fcntl2\n");
-
-                printf("Chat avviata.\n");
-
-                fd_set fds;
-                int nfds = socketfd + 1;
-                char resultMsg[1024];
-                char *bufferMsg = (char*)calloc(1024, sizeof(char));
-                size_t sizeBufferMsg = 1024;
-                bool stopChat = false;
-
-                do{
-                    FD_ZERO(&fds);
-                    FD_SET(socketfd, &fds);
-                    FD_SET(STDIN_FILENO, &fds);
-
-                    checkerror = select(nfds, &fds, NULL, NULL, NULL);
-                    if(checkerror < 0){ // errore select
-                        fprintf(stderr,"Errore select\n");
-                        break;
+                    /* Cattura feedback dal server ('OK') */
+                    memset(buffer, '\0', bufsize);
+                    bytesLetti = safeRead(socketfd, buffer, 2);
+                    if(bytesLetti != 2 || strncmp(buffer, "OK", 2) != 0){
+                        checkerror = close(socketfd);
+                        fprintf(stderr, "Errore lettura feedback\n");
+                        check_perror(checkerror, "Errore chiusura socket", -1);
+                        exit(EXIT_FAILURE);
                     }
-                    for(int fd=0; fd<nfds; fd++)
-                    {
-                        if(FD_ISSET(fd, &fds))
+
+                    /* Scrittura feedback al server ('OK' - termina checkConnectionClient() lato server) */
+                    bytesScritti = safeWrite(socketfd, "OK", 2);
+                    if(bytesScritti != 2){
+                        checkerror = close(socketfd);
+                        fprintf(stderr, "Errore scrittura feedback\n");
+                        check_perror(checkerror, "Errore chiusura socket", -1);
+                        exit(EXIT_FAILURE);
+                    }
+
+                    // /* Elimina eventuali caratteri dallo STDIN */
+                    // checkerror = fcntl(STDIN_FILENO, F_SETFL, (fcntl(STDIN_FILENO, F_GETFD)|O_NONBLOCK));
+                    // if(checkerror!=0) fprintf(stderr,"Error fcntl\n");
+                    // while((checkerror = read(STDIN_FILENO, buffer, 1)) != 0);
+                    // if(checkerror!=0) fprintf(stderr,"Error cleaning stdin %d\n", checkerror);
+                    // memset(buffer, '\0', malloc_usable_size(buffer));
+                    // checkerror = fcntl(STDIN_FILENO, F_SETFL, (fcntl(STDIN_FILENO, F_GETFD)|!O_NONBLOCK));
+                    // if(checkerror!=0) fprintf(stderr,"Error fcntl2\n");
+
+                    printf("Chat avviata.\n");
+
+                    fd_set fds;
+                    int nfds = socketfd + 1;
+                    char resultMsg[1024];
+                    char *bufferMsg = (char*)calloc(1024, sizeof(char));
+                    size_t sizeBufferMsg = 1024;
+                    bool stopChat = false;
+
+                    do{
+                        FD_ZERO(&fds);
+                        FD_SET(socketfd, &fds);
+                        FD_SET(STDIN_FILENO, &fds);
+
+                        /* SELECT con controllo */
+                        checkerror = select(nfds, &fds, NULL, NULL, NULL);
+                        if(checkerror < 0) // ERRORE select
+                        { 
+                            fprintf(stderr,"Errore select\n");
+                            stopChat = true;
+                            checkerror = -1;
+                            break;
+                        }
+
+                        // SELECT was successful
+                        for(int fd=0; fd<nfds; fd++)
                         {
-                            if(fd == 0) // STDIN_FILENO
+                            if(FD_ISSET(fd, &fds))
                             {
-                                getline(&bufferMsg, &sizeBufferMsg, stdin);
-                                if(strlen(bufferMsg) > 1006){ // MASSIMO 1006 CARATTERI
-                                    fprintf(stderr,"Messaggio troppo lungo! (massimo 1000 caratteri)\n");
-                                }
-                                else if(strncmp(bufferMsg, "/STOP\n", 1024) != 0) // /STOP permette di terminare la chat
+                                if(fd == 0) // STDIN_FILENO
                                 {
-                                    buildMessage(resultMsg, bufferMsg, nickname);
-                                    fprintf(stderr, "Stringa: %s", resultMsg);
-                                    bytesScritti = safeWrite(socketfd, resultMsg, 1024);
-                                    if(bytesScritti != 1024){
-                                        fprintf(stderr,"Errore scrittura messaggio.\n");
+                                    getline(&bufferMsg, &sizeBufferMsg, stdin); // stdin
+
+                                    if(strlen(bufferMsg) > 1006) // MASSIMO 1006 CARATTERI
+                                    { 
+                                        fprintf(stderr,"Messaggio troppo lungo! (massimo 1000 caratteri)\n");
+                                    }
+                                    else if(strncmp(bufferMsg, "/STOP\n", 1024) != 0) // /STOP permette di terminare la chat
+                                    {
+                                        buildMessageChat(resultMsg, bufferMsg, nickname);
+                                        fprintf(stderr, "Stringa: %s", resultMsg);
+                                        bytesScritti = safeWrite(socketfd, resultMsg, 1024);
+                                        if(bytesScritti != 1024){
+                                            fprintf(stderr,"Errore scrittura messaggio.\n");
+                                            stopChat = true;
+                                            checkerror = -1;
+                                        }
+                                    }
+                                    else // /STOP inserito, terminazione chat
+                                    {
+                                        fprintf(stderr, "Stop inserito: interruzione chat.\n");
+                                        stopChat = true;
+                                        bufferMsg[5] = '\0';
+                                        bytesScritti = safeWrite(socketfd, bufferMsg, 1024);
+                                        if(bytesScritti != 1024){
+                                            fprintf(stderr,"Errore scrittura messaggio stop.\n");
+                                            checkerror = -1;
+                                        }
+                                    }
+
+                                    memset(bufferMsg, '\0', malloc_usable_size(bufferMsg));
+                                }
+                                else if(fd == socketfd) // Messaggio proveniente dal server 
+                                {
+                                    bytesLetti = safeRead(socketfd, bufferMsg, 1024);
+                                    if(bytesLetti != 1024)
+                                    {
+                                        fprintf(stderr,"Errore lettura messaggio.\n");
                                         stopChat = true;
                                         checkerror = -1;
                                     }
-                                }
-                                else // /STOP inserito, terminazione chat
-                                {
-                                    fprintf(stderr, "Stop inserito\n");
-                                    stopChat = true;
-                                    bufferMsg[5] = '\0';
-                                    bytesScritti = safeWrite(socketfd, bufferMsg, 1024);
-                                    if(bytesScritti != 1024){
-                                        fprintf(stderr,"Errore scrittura messaggio stop.\n");
-                                        checkerror = -1;
+                                    else if(strncmp(bufferMsg, "/STOP", 1024) == 0) // Lettura /STOP, terminazione chat
+                                    { 
+                                        fprintf(stderr,"Stop ricevuto: interruzione chat.\n");
+                                        stopChat = true;
                                     }
-                                }
+                                    else
+                                    {
+                                        printf("%s", bufferMsg);
+                                    }
 
-                                memset(bufferMsg, '\0', malloc_usable_size(bufferMsg));
-                            }
-                            else if(fd == socketfd)
-                            {
-                                bytesLetti = safeRead(socketfd, bufferMsg, 1024);
-                                if(bytesLetti != 1024)
-                                {
-                                    fprintf(stderr,"Errore lettura messaggio.\n");
-                                    stopChat = true;
-                                    checkerror = -1;
+                                    memset(bufferMsg, '\0', malloc_usable_size(bufferMsg));
                                 }
-                                else if(strncmp(bufferMsg, "/STOP", 1024) == 0) // Lettura /STOP, terminazione chat
-                                { 
-                                    fprintf(stderr,"Stop chat ricevuto\n");
-                                    stopChat = true;
-                                }
-                                else
-                                {
-                                    printf("%s", bufferMsg);
-                                }
-
-                                memset(bufferMsg, '\0', malloc_usable_size(bufferMsg));
                             }
                         }
+                    }while(!stopChat);
+
+                    free(bufferMsg);
+                    fprintf(stderr, "Chat terminata.\n");
+
+                    /* Cattura feedback dal server ('OK') */
+                    memset(buffer, '\0', bufsize);
+                    bytesLetti = safeRead(socketfd, buffer, 2);
+                    if(bytesLetti != 2){
+                        checkerror = close(socketfd);
+                        fprintf(stderr, "Errore lettura feedback\n");
+                        check_perror(checkerror, "Errore chiusura socket", -1);
+                        exit(EXIT_FAILURE);
                     }
-                }while(!stopChat);
 
-                free(bufferMsg);
-                fprintf(stderr, "Chat terminata.\n");
-
-                /* Cattura feedback dal server ('OK') */
-                memset(buffer, '\0', bufsize);
-                bytesLetti = safeRead(socketfd, buffer, 2);
-                if(bytesLetti != 2){
-                    checkerror = close(socketfd);
-                    fprintf(stderr, "Errore lettura feedback\n");
-                    checkS(checkerror, "Errore chiusura socket", -1);
-                    exit(EXIT_FAILURE);
+                    /* Scrittura feedback al server ('OK' - termina checkConnectionClient() lato server) */
+                    bytesScritti = safeWrite(socketfd, "OK", 2);
+                    if(bytesScritti != 2){
+                        checkerror = close(socketfd);
+                        fprintf(stderr, "Errore scrittura feedback\n");
+                        check_perror(checkerror, "Errore chiusura socket", -1);
+                        exit(EXIT_FAILURE);
+                    }
                 }
-
-                /* Scrittura feedback al server ('OK' - termina checkConnectionClient() lato server) */
-                bytesScritti = safeWrite(socketfd, "OK", 2);
-                if(bytesScritti != 2){
-                    checkerror = close(socketfd);
-                    fprintf(stderr, "Errore scrittura feedback\n");
-                    checkS(checkerror, "Errore chiusura socket", -1);
-                    exit(EXIT_FAILURE);
-                }
+                
             }
 
         }
@@ -513,9 +562,9 @@ int main(int argc, char **argv)
     } while(inputOperazione == 1 && checkerror != -1); // Continua fino a quando non si verificano errori e l'input è diverso da uno
 
     /* Chiusura socket */
-    fprintf(stderr, "Chiusura connessione\n");
+    fprintf(stderr, "Chiusura connessione.\n");
     checkerror = close(socketfd);
-    checkS(checkerror, "Errore chiusura socket", -1);
+    check_perror(checkerror, "Errore chiusura socket", -1);
 
     /* Uscita */
     if(checkerror == 0){
@@ -528,10 +577,18 @@ int main(int argc, char **argv)
 }
 
 
-/* Funzioni controllo errori */
-void checkS(int valueToCheck, const char *s, int unsuccessValue){
+/* Funzioni controllo errori con perror */
+void check_perror(int valueToCheck, const char *s, int unsuccessValue){
     if(valueToCheck == unsuccessValue){
         perror(s);
+        exit(EXIT_FAILURE);
+    }
+}
+
+/* Funzione controllo errori con strerror */
+void check_strerror(int valueToCheck, const char *s, int successValue){
+    if(valueToCheck != successValue){
+        fprintf(stderr, "%s: %s\n", s, strerror(valueToCheck));
         exit(EXIT_FAILURE);
     }
 }
@@ -579,7 +636,31 @@ ssize_t safeWrite(int fd, const void *buf, size_t count)
     return (count - bytesDaScrivere);
 }
 
-void buildMessage(char *output, char *messaggio, char *nickname){
+/* Controlla se il client digita 'STOP' per interrompere l'attesa */
+void* checkStopWaiting(void *arg)
+{
+    int socketfd = *((int*)arg);
+    ssize_t bytesScritti = 0;
+    char *buffer = (char*)malloc(sizeof(char)*16);
+    size_t buffersize = 16;
+
+    // stdin
+    do{
+        memset(buffer, '\0', 16);
+        getline(&buffer, &buffersize, stdin);
+    }while((strncmp(buffer, "STOP\n", buffersize) != 0));
+
+    /* Invia 'ST' al server per interrompere l'attesa */
+    fprintf(stderr, "Invio messaggio d'interruzione al server: interruzione attesa.\n");
+    bytesScritti = safeWrite(socketfd, "ST", 2);
+    if(bytesScritti != 2){
+        fprintf(stderr, "Errore scrittura STOP.\n");
+    }
+
+    return NULL;
+}
+
+void buildMessageChat(char *output, char *messaggio, char *nickname){
     memset(output, '\0', 1024);
     char buffer[2] = ": ";
     strncpy(output, nickname, 16);
@@ -597,6 +678,7 @@ void stampaCarattere(int carattere, int count)
     }
 }
 
+/* Stampa le stanze */
 void stampaStanze(Room stanze[], int max)
 {
     int len;

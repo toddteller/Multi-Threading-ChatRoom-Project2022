@@ -178,12 +178,12 @@ Match *searchCouple(Queue *Q, nodoQueue *actual, nodoQueue *actualprev, nodoQueu
     Match *matchFound = NULL;
     if(actual != NULL && Q->numeroClients >= 2) // Se non siamo arrivati alla fine della coda Q e il numero di client nella coda Q è almeno 2
     {
-        int actualRoom_id = head->client->actualRoom_id; // ID Stanza attuale
+        int actualRoomID = head->client->actualRoomID; // ID Stanza attuale
 
         // cond_a = 1 sse l'id della stanza attuale è uguale all'id della stanza dell'ultimo match di 'actual->client'
-        int cond_a = (actualRoom_id == actual->client->matchedRoom_id);
+        int cond_a = (actualRoomID == actual->client->matchedRoomID);
         // cond_b = 1 sse l'id della stanza attuale è uguale all'id della stanza dell'ultimo match di 'head->client'
-        int cond_b = (actualRoom_id == head->client->matchedRoom_id);
+        int cond_b = (actualRoomID == head->client->matchedRoomID);
         // cond_c = 1 sse l'indirizzo dell'ultimo client con cui si è collegato 'head->client' è uguale all'indirizzo di 'actual->client'
         int cond_c = !strncmp(head->client->matchedAddress, actual->client->address, 15);
         // cond_d = 1 sse l'indirizzo dell'ultimo client con cui si è collegato 'actual->client' è uguale all'indirizzo di 'head->client'
@@ -339,8 +339,8 @@ int initClient(Client *newClient, int socketClient, char *indirizzo, pthread_mut
     newClient->isConnected = true; // è connesso
     newClient->isMatched = false; // non è matchato 
     newClient->deletedFromQueue = false; // non è stato cancellato dalla coda
-    newClient->matchedRoom_id = -1;
-    newClient->actualRoom_id = -1;
+    newClient->matchedRoomID = -1;
+    newClient->actualRoomID = -1;
 
     // Inizializzazione mutex e cond client
     newClient->mutex = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
