@@ -337,10 +337,12 @@ int initClient(Client *newClient, int socketClient, char *indirizzo, pthread_mut
     newClient->socketfd = socketClient; // socket file descriptor client 
     strncpy(newClient->address, indirizzo, 15); // indirizzo client
     newClient->isConnected = true; // è connesso
-    newClient->isMatched = false; // non è matchato 
+    newClient->isMatched = false; // non è matchato con nessun client 
     newClient->deletedFromQueue = false; // non è stato cancellato dalla coda
-    newClient->matchedRoomID = -1;
-    newClient->actualRoomID = -1;
+    newClient->stopWaiting = false; // non ha interrotto l'attesa (client appena creato)
+    newClient->chatTimedout = false; // la chat non è andata in timedout (client appena creato)
+    newClient->actualRoomID = -1; // non appartiene a nessuna stanza (client appena creato)
+    newClient->matchedRoomID = -1; // non è stato matchato in nessuna stanza (client appena creato)
 
     // Inizializzazione mutex e cond client
     newClient->mutex = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
