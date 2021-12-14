@@ -7,11 +7,7 @@
 #define MAX_NUM_ROOMS 5 // Il numero massimo di stanze del server
 #define MAX_CLIENTS_ROOM 6 // Il numero massimo di client per stanza
 #define PORT 9898
-#define SERVER_BACKLOG 10 // Massimo numero di connessioni 
-
-/* Funzioni controllo errori */
-void check_strerror(int valueToCheck, const char *s, int successValue); // Genericamente per threads
-void check_perror(int valueToCheck, const char *s, int unsuccessValue); // Genericamente per socket
+#define SERVER_BACKLOG 10 // Massimo numero di connessioni pendenti
 
 /* Funzioni di avvio threads */
 void *gestisciRoom(void *arg);
@@ -31,7 +27,7 @@ int main(void)
 {
     int checkerror = 0; // variabile per controllo errori
 
-    /* SET SIGUSR1 TO chatTimedout: usato per interrompere una chat aperta in gestisciChat */
+    /* SET SIGUSR1 TO chatTimedout: usato per interrompere una chat aperta in gestisciChat dopo TOT secondi */
     if(signal(SIGUSR1, chatTimedout) == SIG_ERR) fprintf(stderr,"Errore signal SIGUSR1\n");
 
     /* Ignora segnale SIGPIPE */
@@ -150,6 +146,8 @@ int main(void)
 
     exit(EXIT_SUCCESS);
 }
+
+
 
 
 /* Funzione di avvio thread - stanza di un server */
@@ -275,7 +273,7 @@ void *gestisciRoom(void *arg)
         checkerror = pthread_mutex_unlock(Stanza->mutex); // UNLOCK STANZA
         if(checkerror != 0) fprintf(stderr, "Errore mutexunlock room server %d\n", Stanza->idRoom);
 
-    }while (checkerror == 0);
+    }while(checkerror == 0);
     
     /* Uscita: distruggi stanza ed esci */
     fprintf(stderr, "Distruggi stanza %s", Stanza->roomName);
@@ -388,7 +386,7 @@ void *gestisciClient(void *arg)
             impostaTimerSocket(thisClient->socketfd, 20); // aspetta max 20 secondi
             bytesLetti = safeRead(thisClient->socketfd, buffer, 1);
             if(bytesLetti != 1){ // Errore: distruggi client e chiudi thread.
-                fprintf(stderr, "[5] Errore lettura input client %s\n", thisClient->nickname);
+                fprintf(stderr, "[5] Errore lettura input client %s %d\n", thisClient->nickname, errno);
                 thisClient->isConnected = false;
                 break;
             }
@@ -651,7 +649,7 @@ void *gestisciClient(void *arg)
                 }
             }
 
-            /* Se la stanza non è piena il server continua, altrimenti ritorna all'inizio */
+            /* Se la stanza non è piena il server continua, altrimenti ritorna all'inizio (menu principale) */
             if(!isFull)
             {
                 do // ciclo do while: ritorna in attesa nella stessa stanza
@@ -893,7 +891,7 @@ void *gestisciClient(void *arg)
     return NULL;
 }
 
-/* Controlla se il client ha chiuso la connessione mentre era in attesa oppure ha interrotto l'attesa */
+/* Funzione di avvio thread: controlla se il client ha chiuso la connessione mentre era in attesa oppure ha interrotto l'attesa */
 void *checkConnectionClient(void *arg)
 {
     Client *thisClient = (Client*)arg;
@@ -923,6 +921,7 @@ void *checkConnectionClient(void *arg)
     return NULL;
 }
 
+/* Funzione di avvio thread: gestisce l'intera sessione chat tra due client accoppiati */
 void *gestisciChat(void *arg)
 {
     Match *pairClients = (Match*)arg;
@@ -933,9 +932,11 @@ void *gestisciChat(void *arg)
     int checkerror = 0;
     ssize_t bytesLetti = 0;
     ssize_t bytesScritti = 0;
+
     fd_set fds; // set file descriptor select
     int nfds; // numero file descriptor select
     struct timeval tv; // timeout select
+
     pthread_t TIDchatTimedout; // TID thread checkChatTimedout
     pthread_attr_t *attributi_thread;
     pthread_t *TIDthisThread; // TID di questo thread
@@ -972,6 +973,24 @@ void *gestisciChat(void *arg)
     checkerror = pthread_mutex_unlock(Client2->mutex); // UNLOCK Client2
     if(checkerror != 0) fprintf(stderr, "Errore mutexunlock chat Client2 %s (%s)\n", Client2->nickname, strerror(checkerror));
     /* ------------------------------------------------------- */
+
+
+    /* Invio nicknames del Client 1 al Client 2 e viceversa */
+    // INVIA NICKNAME DI CLIENT 1 AL CLIENT 2
+    bytesScritti = safeWrite(Client1->socketfd, Client2->nickname, 16);
+    if(bytesScritti != 16){ // Errore: distruggi client e chiudi thread.
+        fprintf(stderr, "Errore invio nickname Client 1 %s a Client 2%s.\n", Client1->nickname, Client2->nickname);
+        Client1->isConnected = false;
+    }
+
+    // INVIA NICKNAME DI CLIENT 2 AL CLIENT 1
+    bytesScritti = safeWrite(Client2->socketfd, Client1->nickname, 16);
+    if(bytesScritti != 16){ // Errore: distruggi client e chiudi thread.
+        fprintf(stderr, "Errore invio nickname Client 2 %s a Client 1 %s.\n", Client2->nickname, Client1->nickname);
+        Client2->isConnected = false;
+    }
+    /* ----------------------------------------------------- */
+
 
     /* Determinazione numero massimo di file descriptor per la select */
     int sfd1 = Client1->socketfd;

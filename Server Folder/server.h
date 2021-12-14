@@ -24,7 +24,8 @@ typedef struct{
 } Client;
 
 /* Struttura CODA: contiene i clients in attesa di una chat */
-typedef struct node_t{ // nodo generico di una coda
+// Nodo generico di una coda
+typedef struct node_t{
     struct node_t *next;
     Client *client;
 } nodoQueue;
@@ -111,3 +112,8 @@ ssize_t safeRead(int fd, void *buf, size_t count);
 ssize_t safeWrite(int fd, const void *buf, size_t count);
 void impostaTimerSocket(int socketfd, int seconds);
 /* ------------------------------------------------------------------------- */
+
+/* ------------------------ Funzioni controllo errori  ------------------------ */
+void check_strerror(int valueToCheck, const char *s, int successValue); // Genericamente per threads
+void check_perror(int valueToCheck, const char *s, int unsuccessValue); // Genericamente per socket
+/* --------------------------------------------------------------------------- */
