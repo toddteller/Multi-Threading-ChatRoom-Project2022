@@ -15,7 +15,7 @@ typedef struct{
     atomic_bool deletedFromQueue; // indica se il client è stato cancellato o meno dalla coda
     atomic_bool isMatched; // indica se il client è stato accoppiato con un altro client 
     atomic_bool stopWaiting; // indica se il client ha deciso di interrompere l'attesa 
-    atomic_bool chatTimedout; // indica se la chat è stata interrota
+    atomic_bool chatTimedout; // indica se la chat ha superato il tempo massimo di vita
     int actualRoomID; // indica l'id della stanza attuale
     int matchedRoomID; // indica l'id della stanza in cui il client sta/ha comunicando/comunicato
     char matchedAddress[15]; // indirizzo del client con cui sta/ha comunicando/comunicato

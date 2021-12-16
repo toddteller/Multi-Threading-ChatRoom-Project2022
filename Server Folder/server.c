@@ -450,4 +450,20 @@ void impostaTimerSocket(int socketfd, int seconds)
         fprintf(stderr, "Errore impostazione timer socket\n");
     }
 }
+
+/* Funzione controllo errori con strerror */
+void check_strerror(int valueToCheck, const char *s, int successValue){
+    if(valueToCheck != successValue){
+        fprintf(stderr, "%s: %s\n", s, strerror(valueToCheck));
+        exit(EXIT_FAILURE);
+    }
+}
+
+/* Funzione controllo errori con perror */
+void check_perror(int valueToCheck, const char *s, int unsuccessValue){
+    if(valueToCheck == unsuccessValue){
+        perror(s);
+        exit(EXIT_FAILURE);
+    }
+}
 /* ------------------------------------------------------------------------- */

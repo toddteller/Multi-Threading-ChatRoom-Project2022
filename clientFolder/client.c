@@ -67,7 +67,7 @@ void* checkStopWaiting(void *arg)
     size_t buffersize = 16;
     char *buffer = (char*)malloc(sizeof(char)*16);
     if(buffer == NULL) fprintf(stderr,"Errore allocazione memoria buffer checkStopWaiting\n");
-    
+
     // stdin
     do{
         memset(buffer, '\0', 16);

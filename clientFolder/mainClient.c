@@ -146,6 +146,7 @@ int main(int argc, char **argv)
         { 
             printf("\n> Hai scelto di visualizzare le stanze del server per cercare una chat.\n");
             sleep(2);
+            cleanSTDIN(); // pulisci STDIN_FILENO
             system("clear");
 
             // LETTURA NUMERO STANZE
@@ -386,6 +387,7 @@ int main(int argc, char **argv)
                     {
                         printf("\n> Hai interrotto l'attesa. Ritorno al menu principale.\n");
                         sleep(2);
+                        cleanSTDIN(); // pulisci STDIN_FILENO
                         system("clear");
                     }
                     else /* Se il client non ha interrotto l'attesa -> avvia chat */
