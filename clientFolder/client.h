@@ -45,3 +45,5 @@ void stampaCarattere(int carattere, int count);
 void stampaStanze(Room stanze[], int max);
 /* Stampa menu principale */
 void menuPrincipale(char *nickname);
+/* Messaggio inizio chat avviata */
+void chatStartUI(char *nickname);

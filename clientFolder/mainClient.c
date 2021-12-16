@@ -144,7 +144,7 @@ int main(int argc, char **argv)
 
         if(inputOperazione == 1) // visualizza stanze e cerca una chat
         { 
-            printf("> Hai scelto di visualizzare le stanze del server per cercare una chat.\n");
+            printf("\n> Hai scelto di visualizzare le stanze del server per cercare una chat.\n");
             sleep(2);
             system("clear");
 
@@ -256,7 +256,7 @@ int main(int argc, char **argv)
                 do {
                     memset(buffer, '\0', bufsize);
                     checkInput = false;
-                    printf("   > Seleziona una stanza (inserisci un numero da 1 a %d): ", numeroStanze);
+                    printf("> Seleziona una stanza (inserisci un numero da 1 a %d)\n", numeroStanze);
                     printf("(20 secondi prima che la connessione venga chiusa)\n");
                     getline(&buffer, &bufsize, stdin);
                     if(strlen(buffer) == 2 && (strncmp("1", buffer, 1) == 0 ||
@@ -367,7 +367,7 @@ int main(int argc, char **argv)
                     checkerror = pthread_create(&TIDstopWait, attributi_thread, checkStopWaiting, (void*)&socketfd); // passaggio socket
                     check_strerror(checkerror, "Errore pthread create thread", 0);
 
-                    printf("> Sei in attesa di una chat nella stanza %s...\n", Rooms[inputStanza].roomName);
+                    printf("\n> Sei in attesa di una chat nella stanza %s...\n", Rooms[inputStanza].roomName);
                     printf("  (Per interrompere l'attesa digitare 'STOP')\n");
 
                     /* Cattura feedback dal server ('OK' oppure 'ST') */
@@ -384,7 +384,7 @@ int main(int argc, char **argv)
 
                     if(strncmp(buffer, "ST", 2) == 0) /* Attesa interrotta */
                     {
-                        printf("Hai interrotto l'attesa. Ritorno al menu principale.\n");
+                        printf("\n> Hai interrotto l'attesa. Ritorno al menu principale.\n");
                         sleep(2);
                         system("clear");
                     }
@@ -425,7 +425,7 @@ int main(int argc, char **argv)
                             exit(EXIT_FAILURE);
                         }
 
-                        printf("\n> Chat avviata: sei adesso in comunicazione con %s.\n", buffer);
+                        chatStartUI(buffer); // UI Chat Start
 
                         /* Gestione chat */
                         bool stopChat = false;
@@ -504,18 +504,23 @@ int main(int argc, char **argv)
                                             stopChat = true;
                                             checkerror = -1;
                                         }
-                                        else if(strncmp(bufferMsg, "/STOP", 1024) == 0) // Lettura /STOP, terminazione chat
+                                        else if(strncmp(bufferMsg, "/STOP", 1024) == 0) // Lettura /STOP -> terminazione chat
                                         { 
-                                            printf("> L'altro client ha interrotto la conversazione. Ritorno al menu principale.\n");
+                                            printf("\n> L'altro client ha interrotto la conversazione. Ritorno al menu principale.\n");
                                             stopChat = true;
                                         }
                                         else if(strncmp(bufferMsg, "TIMEC", 1024) == 0) // Lettura TIMEC, chat TIMEDOUT -> terminazione chat
                                         {
-                                            fprintf(stderr,"> La chat è andata in TIMEDOUT. Ritorno in attesa nella stanza %s.\n", Rooms[inputStanza].roomName);
+                                            fprintf(stderr,"\n> La chat è andata in TIMEDOUT. Ritorno in attesa nella stanza %s.\n", Rooms[inputStanza].roomName);
                                             stopChat = true;
                                             chatTimedout = true;
                                         }
-                                        else
+                                        else if(strncmp(bufferMsg, "IDLEC", 1024) == 0) // Lettura IDLEC, chat INATTIVA -> terminazione chat
+                                        {
+                                            fprintf(stderr, "\n> La chat è inattiva. Ritorno al menu principale.\n");
+                                            stopChat = true;
+                                        }
+                                        else // Stampa messaggio ricevuto
                                         {
                                             printf("%s", bufferMsg);
                                         }
@@ -527,7 +532,7 @@ int main(int argc, char **argv)
                         }while(!stopChat);
 
                         free(bufferMsg);
-                        fprintf(stderr, "Chat terminata.\n");
+                        fprintf(stderr, "> Chat terminata.\n");
 
                         if(checkerror != -1) // Non si è verificato nessun errore 
                         {

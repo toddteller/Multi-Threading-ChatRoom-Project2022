@@ -204,8 +204,23 @@ void menuPrincipale(char *nickname)
 	stampaCarattere(61, 45); 
     printf("\n\n");
 
-	printf("    > Inserisci un'operazione [1] o [2]\n");
+	printf("> Inserisci un'operazione [1] o [2]\n");
 	printf("(20 secondi prima che la connessione venga chiusa)\n");
+}
+
+void chatStartUI(char *nickname)
+{
+    printf("\n");
+    stampaCarattere(61, 14);
+    printf("\n%cCHAT TROVATA%c\n", 124, 124);
+
+    stampaCarattere(61, 90);
+    printf("\n> !ATTENZIONE! Dopo 30 secondi di totale inattività si viene riportati al menu principale.\n");
+    printf("> !ATTENZIONE! Dopo 60 secondi si viene automaticamente rimessi in attesa alla ricerca di\n               una nuova chat nella stessa stanza.\n");
+    printf("\n> E' possibile interrompere la chat in qualsiasi momento digitando '/STOP'\n");
+    printf("> Sei in comunicazione con %s\n", nickname);
+    stampaCarattere(61, 90);
+    printf("\n");
 }
 
 /* Pulisce il file descriptor STDIN_FILENO */

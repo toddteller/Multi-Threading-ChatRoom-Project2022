@@ -929,6 +929,7 @@ void *gestisciChat(void *arg)
     char buffer[1024];
     char stopMsg[5] = "/STOP"; // Messaggio: stop chat 
     char chatTimedoutMsg[5] = "TIMEC"; // Messaggio: chat timedout
+    char chatInactiveMsg[5] = "IDLEC"; // Messaggio: chat inattiva
     int checkerror = 0;
     ssize_t bytesLetti = 0;
     ssize_t bytesScritti = 0;
@@ -1040,7 +1041,7 @@ void *gestisciChat(void *arg)
             if(checkerror == 0) // Select timedout
             {
                 fprintf(stderr,"SELECT timedout chat: %s|%s.\n", Client1->nickname, Client2->nickname);
-                strncpy(buffer, stopMsg, 5); // setta messaggio di uscita
+                strncpy(buffer, chatInactiveMsg, 5); // setta messaggio chat inattiva
             } 
             else if(errno == EINTR) // Chat timedout
             {
