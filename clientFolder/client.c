@@ -64,9 +64,10 @@ void* checkStopWaiting(void *arg)
 {
     int socketfd = *((int*)arg);
     ssize_t bytesScritti = 0;
-    char *buffer = (char*)malloc(sizeof(char)*16);
     size_t buffersize = 16;
-
+    char *buffer = (char*)malloc(sizeof(char)*16);
+    if(buffer == NULL) fprintf(stderr,"Errore allocazione memoria buffer checkStopWaiting\n");
+    
     // stdin
     do{
         memset(buffer, '\0', 16);
@@ -79,6 +80,8 @@ void* checkStopWaiting(void *arg)
     if(bytesScritti != 2){
         fprintf(stderr, "Errore scrittura STOP.\n");
     }
+
+    free(buffer);
 
     return NULL;
 }

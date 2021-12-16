@@ -106,7 +106,7 @@ int main(int argc, char **argv)
             bytesScritti = safeWrite(socketfd, buffer, 1);
             if(bytesScritti != 1){
                 checkerror = close(socketfd);
-                fprintf(stderr, "Errore scrittura operazione. Connessione scaduta.\n");
+                fprintf(stderr, "Errore scrittura operazione.\n");
                 check_perror(checkerror, "Errore chiusura socket", -1);
                 exit(EXIT_FAILURE);
             }
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
             bytesLetti = safeRead(socketfd, buffer, 2);
             if(bytesLetti != 2){
                 checkerror = close(socketfd);
-                fprintf(stderr, "Errore lettura feedback\n");
+                fprintf(stderr, "Connessione scaduta\n");
                 check_perror(checkerror, "Errore chiusura socket", -1);
                 exit(EXIT_FAILURE);
             }
@@ -274,7 +274,7 @@ int main(int argc, char **argv)
                 bytesScritti = safeWrite(socketfd, buffer, 1);
                 if(bytesScritti != 1){
                     checkerror = close(socketfd);
-                    fprintf(stderr, "Errore scrittura input stanza. Connessione scaduta.\n");
+                    fprintf(stderr, "Errore scrittura input stanza.\n");
                     check_perror(checkerror, "Errore chiusura socket", -1);
                     exit(EXIT_FAILURE);
                 }
@@ -286,7 +286,7 @@ int main(int argc, char **argv)
                 bytesLetti = safeRead(socketfd, buffer, 2);
                 if(bytesLetti != 2){
                     checkerror = close(socketfd);
-                    fprintf(stderr, "Errore lettura feedback\n");
+                    fprintf(stderr, "Connessione scaduta.\n");
                     check_perror(checkerror, "Errore chiusura socket", -1);
                     exit(EXIT_FAILURE);
                 }
@@ -558,7 +558,8 @@ int main(int argc, char **argv)
                             sleep(2);
                             system("clear");
                             cleanSTDIN(); // pulisci STDIN_FILENO
-                        }                       
+                        }
+                        else break; // checkerror == -1 -> uscita                  
                     }
                 }while(chatTimedout);
             }
