@@ -24,43 +24,43 @@ int setupConnection(unsigned short int port, int lunghezza_coda)
 }
 
 /* ----------------------- OPERAZIONI LISTA NICKNAMES ---------------------- */
-/* Inizializza la lista di nicknames dei clients. Restituisce 0 se è OK, codice di errore altrimenti.*/
-int initListNicknames(ListNicknames *L, pthread_mutexattr_t *restrict attr)
+/* Inizializza l'albero AVL di nicknames dei clients presenti sul server. Restituisce 0 se è OK, codice di errore altrimenti.*/
+int initAVLNicknames(AVLNicknames *T, pthread_mutexattr_t *restrict attr)
 {
-    if(L == NULL){
-        fprintf(stderr, "Memoria lista nicknames non allocata initListNicknames()\n");
+    if(T == NULL){
+        fprintf(stderr, "Memoria AVL nicknames non allocata initAVLNicknames()\n");
         return 1;
     }
 
     int checkerror = 0; // variabile per controllo errori
 
-    // Inizializzazione mutex listaNicknames
-    L->mutex = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
-    if(L->mutex == NULL){
-        fprintf(stderr, "Errore allocazione memoria mutex initListNicknames()\n");
+    // Inizializzazione mutex AVLNicknames
+    T->mutex = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
+    if(T->mutex == NULL){
+        fprintf(stderr, "Errore allocazione memoria mutex initAVLNicknames()\n");
         return 1;
     }
-    if((checkerror = pthread_mutex_init(L->mutex, attr)) != 0){
+    if((checkerror = pthread_mutex_init(T->mutex, attr)) != 0){
         return checkerror;
     }
 
-    L->numeroClientsServer = 0;
+    T->numeroClientsServer = 0;
     return 0;
 }
 
-/* Distrugge la lista di nicknames dei clients Restituisce 0 se è OK, codice di errore altrimenti. */
-int destroyListNicknames(ListNicknames *L)
+/* Distrugge l'albero AVL di nicknames dei clients presenti sul server. Restituisce 0 se è OK, codice di errore altrimenti. */
+int destroyAVLNicknames(AVLNicknames *T)
 {
-    if(L == NULL) return 0;
+    if(T == NULL) return 0;
 
     int checkerror; // variabile per controllo errori
 
-    L->lista = listNicknames_destroy(L->lista);
+    T->root = deleteTreeAVL(T->root);
 
-    if((checkerror = pthread_mutex_destroy(L->mutex)) != 0){
+    if((checkerror = pthread_mutex_destroy(T->mutex)) != 0){
         return checkerror;
     }
-    free(L->mutex);
+    free(T->mutex);
 
     return 0;
 }

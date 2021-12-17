@@ -20,7 +20,7 @@ void *checkChatTimedout(void *arg);
 void chatTimedout(int sig);
 
 /* Variabili globali server */
-ListNicknames *listaNicknames; // Puntatore globale per accesso alla lista di nicknames dei clients connessi al server
+AVLNicknames *AVL_Nicknames; // Puntatore globale per accesso all'albero AVL contenente i nicknames dei clients connessi al server
 Room stanzeServer[MAX_NUM_ROOMS]; // Array di stanze del server globale
 
 int main(void)
@@ -78,13 +78,13 @@ int main(void)
     }
 
     /* Inizializzazione lista nicknames dei clients */
-    listaNicknames = (ListNicknames*)malloc(sizeof(ListNicknames));
-    if(listaNicknames == NULL){
+    AVL_Nicknames = (AVLNicknames*)malloc(sizeof(AVLNicknames));
+    if(AVL_Nicknames == NULL){
         fprintf(stderr, "Errore allocazione lista nicknames\n");
         exit(EXIT_FAILURE);
     }
-    checkerror = initListNicknames(listaNicknames, attributi_mutex);
-    check_strerror(checkerror, "Errore initListNicknames", 0);
+    checkerror = initAVLNicknames(AVL_Nicknames, attributi_mutex);
+    check_strerror(checkerror, "Errore initAVLNicknames", 0);
 
     /* Inizializzazione dati client */
     struct sockaddr_in indirizzoClient;
@@ -137,8 +137,8 @@ int main(void)
     free(attributi_mutex);
 
     /* Distruzione lista nicknames */
-    checkerror = destroyListNicknames(listaNicknames);
-    check_strerror(checkerror, "Errore destroyListNicknames", 0);
+    checkerror = destroyAVLNicknames(AVL_Nicknames);
+    check_strerror(checkerror, "Errore destroyAVLNicknames", 0);
 
     /* Chiusura socket Server */
     checkerror = close(socketServer);
@@ -314,13 +314,15 @@ void *gestisciClient(void *arg)
 
     /* Controlla se il nickname è già presente nel server */
     bool nicknameExists = false;
+    int nicknamesInt = 0;
 
-    checkerror = pthread_mutex_lock(listaNicknames->mutex); // LOCK LISTNICKNAMES
+    checkerror = pthread_mutex_lock(AVL_Nicknames->mutex); // LOCK ALBERO AVL
     if(checkerror != 0) fprintf(stderr, "Errore mutexlock existingNickname %s\n", strerror(checkerror));
 
-    nicknameExists = listNicknames_existingNickname(listaNicknames->lista, thisClient->nickname, 16);
+    nicknamesInt = sumOfAsciiString(thisClient->nickname); // converti la stringa in un numero intero univoco
+    nicknameExists = alberoAVL_nicknameExists(AVL_Nicknames->root, nicknamesInt); // controlla se esiste già il nickname
 
-    checkerror = pthread_mutex_unlock(listaNicknames->mutex); // UNLOCK LISTNICKNAMES
+    checkerror = pthread_mutex_unlock(AVL_Nicknames->mutex); // UNLOCK ALBERO AVL
     if(checkerror != 0) fprintf(stderr, "Errore mutexunlock existingNickname %s\n", strerror(checkerror));
 
     if(nicknameExists) // Nickname già esistente
@@ -360,14 +362,14 @@ void *gestisciClient(void *arg)
     }
     impostaTimerSocket(thisClient->socketfd, 0); //  elimina timer socket
 
-    /* Inserimento nickname thisClient nella lista dei nicknames */
-    checkerror = pthread_mutex_lock(listaNicknames->mutex); // LOCK LISTNICKNAMES
+    /* Inserimento nickname thisClient nell'albero AVL nicknames del server */
+    checkerror = pthread_mutex_lock(AVL_Nicknames->mutex); // LOCK ALBERO AVL
     if(checkerror != 0) fprintf(stderr, "Errore mutexlock insertOnHead %s\n", strerror(checkerror));
 
-    listaNicknames->lista = listNicknames_insertOnHead(listaNicknames->lista, thisClient->nickname, 16);
-    listaNicknames->numeroClientsServer += 1;
+    AVL_Nicknames->root = alberoAVL_insertNickname(AVL_Nicknames->root, thisClient->nickname, nicknamesInt);
+    AVL_Nicknames->numeroClientsServer += 1;
 
-    checkerror = pthread_mutex_unlock(listaNicknames->mutex); // UNLOCK LISTNICKNAMES
+    checkerror = pthread_mutex_unlock(AVL_Nicknames->mutex); // UNLOCK ALBERO AVL
     if(checkerror != 0) fprintf(stderr, "Errore mutexunlock insertOnHead %s\n", strerror(checkerror));
 
     /* Leggi operazione da effettuare dal client*/
@@ -885,14 +887,14 @@ void *gestisciClient(void *arg)
 
 
     /* EXIT: Elimina nickname dalla lista e distruggi client */
-    checkerror = pthread_mutex_lock(listaNicknames->mutex); // LOCK LISTNICKNAMES
-    if(checkerror != 0) fprintf(stderr, "Errore mutexlock insertOnHead %s\n", strerror(checkerror));
+    checkerror = pthread_mutex_lock(AVL_Nicknames->mutex); // LOCK ALBERO AVL
+    if(checkerror != 0) fprintf(stderr, "Errore mutexlock insertAVL %s\n", strerror(checkerror));
 
-    listaNicknames->lista = listNicknames_deleteNode(listaNicknames->lista, thisClient->nickname);
-    listaNicknames->numeroClientsServer -= 1;
+    AVL_Nicknames->root = alberoAVL_deleteNickname(AVL_Nicknames->root, nicknamesInt);
+    AVL_Nicknames->numeroClientsServer -= 1;
 
-    checkerror = pthread_mutex_unlock(listaNicknames->mutex); // UNLOCK LISTNICKNAMES
-    if(checkerror != 0) fprintf(stderr, "Errore mutexunlock insertOnHead %s\n", strerror(checkerror));
+    checkerror = pthread_mutex_unlock(AVL_Nicknames->mutex); // UNLOCK ALBERO AVL
+    if(checkerror != 0) fprintf(stderr, "Errore mutexunlock insertAVL %s\n", strerror(checkerror));
 
     // Distruggi client ed esci
     fprintf(stderr, "Chiusura client %s nickname %s\n", thisClient->address, thisClient->nickname);

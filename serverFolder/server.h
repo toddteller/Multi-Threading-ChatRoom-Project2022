@@ -1,4 +1,4 @@
-#include "list.h"
+#include "AVL.h"
 #include <pthread.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -42,12 +42,13 @@ typedef struct{
     Client *couplantClient2;
 } Match;
 
-/* Struttura LISTNICKNAMES: lista con tutti i nicknames dei clients presenti nel server */
+/* STRUTTURA AVLNICKNAMES: struttura dati albero AVL contenente tutti i nomi dei nicknames 
+                           dei clients connessi e il numero di clients del server*/
 typedef struct{
-    List *lista;
-    int numeroClientsServer; // numero totali clients connessi
+    struct node *root;
+    int numeroClientsServer;
     pthread_mutex_t *mutex;
-} ListNicknames;
+} AVLNicknames;
 
 /* Struttura ROOM: contiene tutte le informazioni sulla stanza necessarie */
 typedef struct{
@@ -63,13 +64,12 @@ typedef struct{
 /* Imposta la connessione per il server. Restituisce 0 se è OK, -1 altrimenti. */
 int setupConnection(unsigned short int port, int lunghezza_coda);
 
-/* ----------------------- OPERAZIONI LISTA NICKNAMES ---------------------- */
-/* Inizializza la lista di nicknames dei clients. Restituisce 0 se è OK, codice di errore altrimenti.*/
-int initListNicknames(ListNicknames *L, pthread_mutexattr_t *restrict attr);
-/* Distrugge la lista di nicknames dei clients Restituisce 0 se è OK, codice di errore altrimenti. */
-int destroyListNicknames(ListNicknames *L);
-/* ------------------------------------------------------------------------- */
-
+/* ----------------------- OPERAZIONI ALBERO AVL NICKNAMES ---------------------- */
+/* Inizializza l'albero AVL di nicknames dei clients presenti sul server. Restituisce 0 se è OK, codice di errore altrimenti.*/
+int initAVLNicknames(AVLNicknames *T, pthread_mutexattr_t *restrict attr);
+/* Distrugge l'albero AVL di nicknames dei clients presenti sul server. Restituisce 0 se è OK, codice di errore altrimenti. */
+int destroyAVLNicknames(AVLNicknames *T);
+/* ------------------------------------------------------------------------------ */
 
 /* --------------------------- OPERAZIONI QUEUE --------------------------- */
 /* Accoda un client nella coda Q */
