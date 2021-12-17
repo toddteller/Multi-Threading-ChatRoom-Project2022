@@ -180,13 +180,13 @@ Match *searchCouple(Queue *Q, nodoQueue *actual, nodoQueue *actualprev, nodoQueu
     {
         int actualRoomID = head->client->actualRoomID; // ID Stanza attuale
 
-        // cond_a = 1 sse l'id della stanza attuale è uguale all'id della stanza dell'ultimo match di 'actual->client'
+        // cond_a == 1 sse l'id della stanza attuale è uguale all'id della stanza dell'ultimo match di 'actual->client'
         int cond_a = (actualRoomID == actual->client->matchedRoomID);
-        // cond_b = 1 sse l'id della stanza attuale è uguale all'id della stanza dell'ultimo match di 'head->client'
+        // cond_b == 1 sse l'id della stanza attuale è uguale all'id della stanza dell'ultimo match di 'head->client'
         int cond_b = (actualRoomID == head->client->matchedRoomID);
-        // cond_c = 1 sse l'indirizzo dell'ultimo client con cui si è collegato 'head->client' è uguale all'indirizzo di 'actual->client'
+        // cond_c == 1 sse l'indirizzo dell'ultimo client con cui si è collegato 'head->client' è uguale all'indirizzo di 'actual->client'
         int cond_c = !strncmp(head->client->matchedAddress, actual->client->address, 15);
-        // cond_d = 1 sse l'indirizzo dell'ultimo client con cui si è collegato 'actual->client' è uguale all'indirizzo di 'head->client'
+        // cond_d == 1 sse l'indirizzo dell'ultimo client con cui si è collegato 'actual->client' è uguale all'indirizzo di 'head->client'
         int cond_d = !strncmp(head->client->address, actual->client->matchedAddress, 15);
 
         if(cond_a && cond_b && (cond_c || cond_d)) // Coppia non valida

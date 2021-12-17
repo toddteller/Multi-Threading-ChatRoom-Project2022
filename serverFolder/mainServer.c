@@ -375,8 +375,9 @@ void *gestisciClient(void *arg)
     {
         bool checkInput; // Variabile controllo input client
         int input = 0; // Valore inserito dal client
-        thisClient->actualRoomID = -1; // il client non appartiene a nessuna stanza
-        thisClient->stopWaiting = false; // il client non ha interrotto l'attesa
+        thisClient->actualRoomID = -1; // reset: il client non appartiene a nessuna stanza
+        thisClient->stopWaiting = false; // reset: il client non ha interrotto l'attesa
+        thisClient->deletedFromQueue = false; // reset: il client non appartiene a nessuna coda
 
         do // Ciclo controllo input client
         {
@@ -686,6 +687,7 @@ void *gestisciClient(void *arg)
 
                     if(!thisClient->chatTimedout) // Se l'ultima chat non è andata in timedout vuol dire che è la prima volta che entra in questa stanza
                     {
+                        fprintf("Client %s aumenta numero clients stanza %s", thisClient->nickname, stanzeServer[input].roomName);
                         stanzeServer[input].numClients += 1; // aumento numero clients della stanza
                     }
                     
