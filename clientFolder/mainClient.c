@@ -83,13 +83,26 @@ int main(int argc, char **argv)
     /* Invio operazione ('1' oppure '2') al server */
     int inputOperazione;
     do 
-    {
+    {   
+        fd_set rfds;
+        struct timeval tv;
+        tv.tv_sec = 20;
+        tv.tv_usec = 0;
+
         bool checkInput;
         do {
-            do {
+            do{
+                FD_ZERO(&rfds);
+                FD_SET(STDIN_FILENO, &rfds);
                 memset(buffer, '\0', bufsize);
                 checkInput = false;
                 menuPrincipale(nickname);
+                checkerror = select(1, &rfds, NULL, NULL, &tv);
+                if(checkerror == 0)
+                {
+                    fprintf(stderr, "\n!!> Connessione scaduta <!!\n");
+                    exit(EXIT_FAILURE);
+                }
                 getline(&buffer, &bufsize, stdin);
                 if(strlen(buffer) == 2 && (strncmp("1", buffer, 1) == 0 || strncmp("2", buffer, 1) == 0)) {
                     checkInput = true;
@@ -254,11 +267,21 @@ int main(int argc, char **argv)
             /* Scelta della stanza */
             int inputStanza;
             do {
+                tv.tv_sec = 20;
+                tv.tv_usec = 0;
                 do {
+                    FD_ZERO(&rfds);
+                    FD_SET(STDIN_FILENO, &rfds);
                     memset(buffer, '\0', bufsize);
                     checkInput = false;
                     printf("> Seleziona una stanza (inserisci un numero da 1 a %d)\n", numeroStanze);
                     printf("(20 secondi prima che la connessione venga chiusa)\n");
+                    checkerror = select(1, &rfds, NULL, NULL, &tv);
+                    if(checkerror == 0)
+                    {
+                        fprintf(stderr, "\n!!> Connessione scaduta <!!\n");
+                        exit(EXIT_FAILURE);
+                    }
                     getline(&buffer, &bufsize, stdin);
                     if(strlen(buffer) == 2 && (strncmp("1", buffer, 1) == 0 ||
                                                strncmp("2", buffer, 1) == 0 ||
