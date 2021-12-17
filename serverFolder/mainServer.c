@@ -684,10 +684,10 @@ void *gestisciClient(void *arg)
 
                     enqueue(stanzeServer[input].Q, thisClient); // inserimento in coda
                     fprintf(stderr, "Client %s inserito in coda nella stanza %s", thisClient->nickname, stanzeServer[input].roomName);
-
+                    fprintf(stderr, "Valore di chatTimedout: %d\n", thisClient->chatTimedout);
                     if(!thisClient->chatTimedout) // Se l'ultima chat non è andata in timedout vuol dire che è la prima volta che entra in questa stanza
                     {
-                        fprintf("Client %s aumenta numero clients stanza %s", thisClient->nickname, stanzeServer[input].roomName);
+                        fprintf(stderr, "Client %s aumenta numero clients stanza %s", thisClient->nickname, stanzeServer[input].roomName);
                         stanzeServer[input].numClients += 1; // aumento numero clients della stanza
                     }
                     
