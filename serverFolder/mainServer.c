@@ -18,21 +18,34 @@ void *checkChatTimedout(void *arg);
 
 /* Signal handler */
 void chatTimedout(int sig);
+void serverOFF(int sig);
 
 /* Variabili globali server */
 AVLNicknames *AVL_Nicknames; // Puntatore globale per accesso all'albero AVL contenente i nicknames dei clients connessi al server
 Room stanzeServer[MAX_NUM_ROOMS]; // Array di stanze del server globale
+volatile sig_atomic_t serverON; // true = serverON | false = serverOFF
+int socketServer; // socket Server
 
 int main(void)
 {
     int checkerror = 0; // variabile per controllo errori
+    serverON = true; // server attivo
 
     /* SET SIGUSR1 TO chatTimedout: usato per interrompere una chat aperta in gestisciChat dopo TOT secondi */
-    if(signal(SIGUSR1, chatTimedout) == SIG_ERR) fprintf(stderr,"Errore signal SIGUSR1\n");
+    if(signal(SIGUSR1, chatTimedout) == SIG_ERR){
+        perror("Errore signal(SIGUSR1, chatTimedout)");
+        exit(EXIT_FAILURE);
+    } 
 
     /* Ignora segnale SIGPIPE */
     if(signal(SIGPIPE, SIG_IGN) == SIG_ERR){
         perror("Errore signal(SIGPIPE, SIG_IGN)");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Segnale SIGINT usato per spegnere il server */
+    if(signal(SIGINT, serverOFF) == SIG_ERR){
+        perror("Errore signal(SIGINT, serverOFF");
         exit(EXIT_FAILURE);
     }
 
@@ -95,16 +108,16 @@ int main(void)
     indirizzo_size = sizeof(struct sockaddr_in);
 
     /* Setup e apertura connessione */
-    int socketServer;
     socketServer = setupConnection(PORT, SERVER_BACKLOG);
     check_perror(socketServer, "Errore setup connection main", -1);
 
     /* Accetta nuove connessioni */
-    while(1){
+    while(serverON){
         fprintf(stderr, "Server in ascolto, in attesa di connessioni...\n");
 
         // accetta nuova connessione
         socketClient = accept(socketServer, (struct sockaddr*)&indirizzoClient, (socklen_t*)&indirizzo_size);
+        if(errno == EBADF) break; // segnale SIGINT chiusura server ricevuto -> esci dal ciclo
         check_perror(socketClient, "Errore accept new connection", -1);
 
         // conversione indirizzo in stringa formato dotted
@@ -124,30 +137,27 @@ int main(void)
         check_strerror(checkerror, "Errore creazione thread gestisciClient", 0);
     }
 
-    fprintf(stderr, "Chiusura server.\n");
-
     /* Distruzione attributi thread */
+    fprintf(stderr, "> Distruzione attributi thread\n");
     checkerror = pthread_attr_destroy(attributi_thread);
     check_strerror(checkerror, "Errore threadattrdestroy main", 0);
     free(attributi_thread);
 
     /* Distruzione attributi mutex */
+    fprintf(stderr, "> Distruzione attributi mutex\n");
     checkerror = pthread_mutexattr_destroy(attributi_mutex);
     check_strerror(checkerror, "Errore mutexattrdestroy main", 0);
     free(attributi_mutex);
-
-    /* Distruzione lista nicknames */
+    
+    /* Distruzione AVL nicknames */
+    fprintf(stderr, "> Distruzione attributi struttura dati AVL Nicknames\n");
     checkerror = destroyAVLNicknames(AVL_Nicknames);
     check_strerror(checkerror, "Errore destroyAVLNicknames", 0);
 
-    /* Chiusura socket Server */
-    checkerror = close(socketServer);
-    check_perror(checkerror, "Errore chiusura socket Server", -1);
-
+    sleep(1); // attendi un secondo prima di uscire
+    fprintf(stderr, ">! Chiusura server <!\n");
     exit(EXIT_SUCCESS);
 }
-
-
 
 
 /* Funzione di avvio thread - stanza di un server */
@@ -163,11 +173,11 @@ void *gestisciRoom(void *arg)
 
     do
     {
-        /* Resta in attesa fino a quando la coda non contiene almeno due clients */
+        /* ROOM: Resta in attesa fino a quando la coda non contiene almeno due clients e il server è on*/
         checkerror = pthread_mutex_lock(Stanza->mutex); // LOCK STANZA
         if(checkerror != 0) fprintf(stderr, "Errore mutexlock room server %d\n", Stanza->idRoom);
 
-        while(Stanza->Q->numeroClients < 2 || notFound) 
+        while((Stanza->Q->numeroClients < 2 || notFound) && serverON) 
         { 
             notFound = false;
             fprintf(stderr, "Stanza in attesa: %s", Stanza->roomName);
@@ -180,7 +190,9 @@ void *gestisciRoom(void *arg)
 
         fprintf(stderr, "Stanza uscita dall'attesa: %s", Stanza->roomName);
 
-        if(checkerror != 0){ // Si è verificato un errore
+        if(checkerror != 0 || !serverON){ // Si è verificato un errore o il server è andato OFF
+            checkerror = pthread_mutex_unlock(Stanza->mutex); // UNLOCK STANZA
+            if(checkerror != 0) fprintf(stderr, "Errore mutexunlock room server %d\n", Stanza->idRoom);
             break;
         }
         else
@@ -273,12 +285,12 @@ void *gestisciRoom(void *arg)
         checkerror = pthread_mutex_unlock(Stanza->mutex); // UNLOCK STANZA
         if(checkerror != 0) fprintf(stderr, "Errore mutexunlock room server %d\n", Stanza->idRoom);
 
-    }while(checkerror == 0);
+    }while(checkerror == 0 && serverON); // continua fino a quando non si verificano errori e il server è ON
     
     /* Uscita: distruggi stanza ed esci */
     fprintf(stderr, "Distruggi stanza %s", Stanza->roomName);
     checkerror = destroyRoom(Stanza);
-    check_strerror(checkerror, "Errore destroyRoom\n", 0);
+    check_strerror(checkerror, "Errore destroyRoom", 0);
 
     return NULL;
 }
@@ -1311,13 +1323,39 @@ void *checkChatTimedout(void *arg)
     return NULL;
 }
 
-/* Signal handler per SIGUSR 1: usato per interrompere la chat in gestisciChat() */
+/* Signal handler per SIGUSR1: usato per interrompere la chat in gestisciChat().
+    Usiamo questa funzione invece di SIG_IGN. */
 void chatTimedout(int sig)
 {
     if(sig == SIGUSR1)
     {
-        fprintf(stderr, "CHAT TIMEDOUT.\n");
+        char *buffer = "CHAT TIMEDOUT\n";
+        write(STDERR_FILENO, buffer, strlen(buffer));
     }
     
 }
 
+/* Signal handler per SIGINT: usato per spegnere il server */
+void serverOFF(int sig)
+{
+    if(sig == SIGINT)
+    {
+        char *buffer = "\n!> SIGINT RICEVUTO <!\n";
+        write(STDERR_FILENO, buffer, strlen(buffer));
+        int checkerror = 0;
+        serverON = false;
+
+        // Sveglia eventualmente le stanze in attesa per chiuderle
+        for(int i=0; i<MAX_NUM_ROOMS; i++)
+        {
+            checkerror = pthread_cond_signal(stanzeServer[i].cond);
+            if(checkerror != 0){
+                fprintf(stderr, "Errore condsignal serverOFF ciclo %d %s\n", i, strerror(checkerror));
+            }
+        }
+
+        /* Chiusura socket Server - terminazione system call accept() */
+        checkerror = close(socketServer);
+        check_perror(checkerror, "Errore chiusura socket Server", -1);
+    }
+}

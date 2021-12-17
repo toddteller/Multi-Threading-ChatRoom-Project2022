@@ -307,11 +307,13 @@ int destroyRoom(Room *Stanza)
     free(Stanza->Q);
 
     if((checkerror = pthread_mutex_destroy(Stanza->mutex)) != 0){
+        fprintf(stderr,"qua\n");
         return checkerror;
     }
     free(Stanza->mutex);
 
     if((checkerror = pthread_cond_destroy(Stanza->cond)) != 0){
+        fprintf(stderr,"no qua\n");
         return checkerror;
     }
     free(Stanza->cond);
