@@ -9,6 +9,16 @@
 #define PORT 9898
 #define SERVER_BACKLOG 10 // Massimo numero di connessioni pendenti
 
+/* Variabili globali server */
+AVLNicknames *AVL_Nicknames; // Puntatore globale per accesso all'albero AVL contenente i nicknames dei clients connessi al server
+Room stanzeServer[MAX_NUM_ROOMS]; // Array di stanze del server globale
+volatile sig_atomic_t serverON; // true = serverON | false = serverOFF
+int socketServer; // socket Server
+
+/* Signal handler */
+void chatTimedout(int sig);
+void serverOFF(int sig);
+
 /* Funzioni di avvio threads */
 void *gestisciRoom(void *arg);
 void *gestisciClient(void *arg);
@@ -16,22 +26,12 @@ void *gestisciChat(void *arg);
 void *checkConnectionClient(void *arg);
 void *checkChatTimedout(void *arg);
 
-/* Signal handler */
-void chatTimedout(int sig);
-void serverOFF(int sig);
-
-/* Variabili globali server */
-AVLNicknames *AVL_Nicknames; // Puntatore globale per accesso all'albero AVL contenente i nicknames dei clients connessi al server
-Room stanzeServer[MAX_NUM_ROOMS]; // Array di stanze del server globale
-volatile sig_atomic_t serverON; // true = serverON | false = serverOFF
-int socketServer; // socket Server
-
 int main(void)
 {
     int checkerror = 0; // variabile per controllo errori
     serverON = true; // server attivo
 
-    /* SET SIGUSR1 TO chatTimedout: usato per interrompere una chat aperta in gestisciChat dopo TOT secondi */
+    /* SET SIGUSR1 TO chatTimedout: usato per interrompere una chat aperta in gestisciChat() dopo TOT secondi */
     if(signal(SIGUSR1, chatTimedout) == SIG_ERR){
         perror("Errore signal(SIGUSR1, chatTimedout)");
         exit(EXIT_FAILURE);
@@ -90,7 +90,7 @@ int main(void)
             check_strerror(checkerror, "Errore creazione thread gestisciRoom", 0);
     }
 
-    /* Inizializzazione lista nicknames dei clients */
+    /* Inizializzazione struttura dati albero AVL nicknames dei clients */
     AVL_Nicknames = (AVLNicknames*)malloc(sizeof(AVLNicknames));
     if(AVL_Nicknames == NULL){
         fprintf(stderr, "Errore allocazione lista nicknames\n");
@@ -155,7 +155,7 @@ int main(void)
     check_strerror(checkerror, "Errore destroyAVLNicknames", 0);
 
     sleep(1); // attendi un secondo prima di uscire
-    fprintf(stderr, ">! Chiusura server <!\n");
+    fprintf(stderr, "!> Chiusura server <!\n");
     exit(EXIT_SUCCESS);
 }
 
@@ -168,8 +168,8 @@ void *gestisciRoom(void *arg)
 
     fprintf(stderr, "Thread stanza avviato. Nome stanza: %s", Stanza->roomName);
 
-    // utilizzata per evitare situazioni di dead lock
-    bool notFound = false; // significato: non è stata trovata una coppia di client da mettere in comunicazione
+    // permette alla stanza di ritornare in attesa passiva quando non è stata trovata una coppia client da mettere in comunicazione chat
+    bool matchNotFound = false; // significato: non è stata trovata una coppia di client da mettere in comunicazione
 
     do
     {
@@ -177,9 +177,9 @@ void *gestisciRoom(void *arg)
         checkerror = pthread_mutex_lock(Stanza->mutex); // LOCK STANZA
         if(checkerror != 0) fprintf(stderr, "Errore mutexlock room server %d\n", Stanza->idRoom);
 
-        while((Stanza->Q->numeroClients < 2 || notFound) && serverON) 
+        while((Stanza->Q->numeroClients < 2 || matchNotFound) && serverON) 
         { 
-            notFound = false;
+            matchNotFound = false;
             fprintf(stderr, "Stanza in attesa: %s", Stanza->roomName);
             checkerror = pthread_cond_wait(Stanza->cond, Stanza->mutex);
             if(checkerror != 0){
@@ -206,11 +206,11 @@ void *gestisciRoom(void *arg)
             if(matchFound == NULL) // Coppia client non trovata: ritorna in attesa
             { 
                 fprintf(stderr, "Coppia client non trovata: %s", Stanza->roomName);
-                notFound = true; // non trovata
+                matchNotFound = true; // non trovata
             }
             else // Coppia client trovata
             { 
-                notFound = false; // trovata
+                matchNotFound = false; // trovata
 
                 Client *Client1 = matchFound->couplantClient1;
                 Client *Client2 = matchFound->couplantClient2;
@@ -384,7 +384,7 @@ void *gestisciClient(void *arg)
     checkerror = pthread_mutex_unlock(AVL_Nicknames->mutex); // UNLOCK ALBERO AVL
     if(checkerror != 0) fprintf(stderr, "Errore mutexunlock insertOnHead %s\n", strerror(checkerror));
 
-    /* Leggi operazione da effettuare dal client*/
+    /* Leggi operazione da effettuare dal client */
     do
     {
         bool checkInput; // Variabile controllo input client
@@ -1307,8 +1307,8 @@ void *gestisciChat(void *arg)
 }
 
 
-/* Dopo 60 secondi chiude la chat aperta in gestisciChat() inviando un segnale SIGUSR1 al thread. 
-   La ricezione del segnale da parte del thread gestisciChat provocherà l'interruzione della select, 
+/* Funziona di avvio thread lanciato da gestiscichat(): dopo 60 secondi chiude la chat aperta in gestisciChat() 
+   inviando un segnale SIGUSR1 al thread. La ricezione del segnale da parte del thread gestisciChat provocherà l'interruzione della select, 
    read o write e in particolare provocherà l'interruzione della chat */
 void *checkChatTimedout(void *arg)
 {
@@ -1323,8 +1323,7 @@ void *checkChatTimedout(void *arg)
     return NULL;
 }
 
-/* Signal handler per SIGUSR1: usato per interrompere la chat in gestisciChat().
-    Usiamo questa funzione invece di SIG_IGN. */
+/* Signal handler per SIGUSR1: usato per interrompere la chat in gestisciChat() */
 void chatTimedout(int sig)
 {
     if(sig == SIGUSR1)

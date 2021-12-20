@@ -1,19 +1,19 @@
 #include "AVL.h"
 
-//altezza
+/* Restituisce il massimo tra a e b */
+int max(int a, int b)
+{
+	return (a > b)? a : b;
+}
+
+/* Restituisce l'altezza di un albero AVL */
 int altezza(AlberoAVL *T)
 {
 	if(T != NULL) return T->h;
 	else return -1;
 }
 
-//max
-int max(int a, int b)
-{
-	return (a > b)? a : b;
-}
-
-//rotateSSX
+/* ROTAZIONI */
 AlberoAVL *rotateSSX(AlberoAVL *T)
 {
 	AlberoAVL *sx = T->sx;
@@ -24,7 +24,6 @@ AlberoAVL *rotateSSX(AlberoAVL *T)
 	return sx;
 }
 
-//rotateSDX
 AlberoAVL *rotateSDX(AlberoAVL *T)
 {
 	AlberoAVL *dx = T->dx;
@@ -35,7 +34,6 @@ AlberoAVL *rotateSDX(AlberoAVL *T)
 	return dx;
 }
 
-//rotateDSX
 AlberoAVL *rotateDSX(AlberoAVL *T)
 {
 	if(T != NULL)
@@ -46,7 +44,6 @@ AlberoAVL *rotateDSX(AlberoAVL *T)
 	return T;
 }
 
-//rotateDDX
 AlberoAVL *rotateDDX(AlberoAVL *T)
 {
 	if(T != NULL)
@@ -56,8 +53,9 @@ AlberoAVL *rotateDDX(AlberoAVL *T)
 	}
 	return T;
 }
+/* ----------------------------------------------------- */
 
-//bilanciaSX
+/* BILANCIA */
 AlberoAVL *bilanciaSX(AlberoAVL *T)
 {
 	if(T != NULL)
@@ -82,7 +80,6 @@ AlberoAVL *bilanciaSX(AlberoAVL *T)
 	return T;
 }
 
-//bilanciaDX
 AlberoAVL *bilanciaDX(AlberoAVL *T)
 {
 	if(T != NULL)
@@ -106,8 +103,9 @@ AlberoAVL *bilanciaDX(AlberoAVL *T)
 	}
 	return T;
 }
+/* ---------------------------------------------------------- */
 
-//insert
+/* Inserisce un nuovo nodo nell'albero AVL */
 AlberoAVL *alberoAVL_insertNickname(AlberoAVL *T, char *nickname, int nicknameInt)
 {
 	if(T == NULL)
@@ -137,7 +135,7 @@ AlberoAVL *alberoAVL_insertNickname(AlberoAVL *T, char *nickname, int nicknameIn
 	return T;
 }
 
-//elimina
+/* Elimina un nodo dall'albero AVL univocamente determinato da nicknameInt */
 AlberoAVL *alberoAVL_deleteNickname(AlberoAVL *T, int nicknameInt)
 {
 	if(T != NULL)
@@ -219,7 +217,9 @@ AlberoAVL *staccaMinimo(AlberoAVL *T, AlberoAVL *P)
 	}
 	return min;
 }
+/* ------------------------------------------------------------------ */
 
+/* Data una stringa, restituisce la somma dei suoi caratteri convertiti in intero */
 int sumOfAsciiString(char *string)
 {
 	int ret = 0;
@@ -232,6 +232,7 @@ int sumOfAsciiString(char *string)
 	return ret;
 }
 
+/* Ricerca un nodo nell'albero AVL unicovamente determinato da nicknameInt */
 bool alberoAVL_nicknameExists(AlberoAVL *T, int nicknameInt)
 {
 	bool exists = false;
@@ -253,6 +254,7 @@ bool alberoAVL_nicknameExists(AlberoAVL *T, int nicknameInt)
 	return exists;
 }
 
+/* Distrugge un albero AVL con radice T */
 AlberoAVL *deleteTreeAVL(AlberoAVL *T)
 {
 	if(T!=NULL)
@@ -264,6 +266,7 @@ AlberoAVL *deleteTreeAVL(AlberoAVL *T)
 	return NULL;
 }
 
+/* Stampa contenuto albero AVL post order */
 void printTree(AlberoAVL *T)
 {
 	if(T != NULL)

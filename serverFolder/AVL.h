@@ -4,41 +4,44 @@
 #include <unistd.h>
 #include <stdbool.h>
 
+// STRUTTURA DATI NODO AVL
 typedef struct node{
 	struct node *sx;
 	struct node *dx;
-	int h;
-	char nickname[16];
-	int nicknameInt;
-} AlberoAVL; // Struttura dati albero AVL contenente i nicknames
+	int h; // altezza albero
+	char nickname[16]; // nickname client
+	int nicknameInt;  // somma caratteri nickname convertiti in intero 
+} AlberoAVL;
 
-//somma di caratteri in ascii code di una stringa
+/* Data una stringa, restituisce la somma dei suoi caratteri convertiti in intero */
 int sumOfAsciiString(char *string);
-//altezza
-int altezza(AlberoAVL *T);
-//max
+
+/* Restituisce il massimo tra a e b */
 int max(int a, int b);
-//rotateSSX
+
+/* Restituisce l'altezza di un albero AVL */
+int altezza(AlberoAVL *T);
+
+/* ROTAZIONI */
 AlberoAVL *rotateSSX(AlberoAVL *T);
-//rotateSDX
 AlberoAVL *rotateSDX(AlberoAVL *T);
-//rotateDSX
 AlberoAVL *rotateDSX(AlberoAVL *T);
-//rotateDDX
 AlberoAVL *rotateDSX(AlberoAVL *T);
-//bilanciaSX
+
+/* BILANCIA SX/DX */
 AlberoAVL *bilanciaSX(AlberoAVL *T);
-//bilanciaDX
 AlberoAVL *bilanciaDX(AlberoAVL *T);
-//insert
+
+/* Inserisce un nuovo nodo nell'albero AVL */
 AlberoAVL *alberoAVL_insertNickname(AlberoAVL *T, char *nickname, int nicknameInt);
-//elimina
+/* Elimina un nodo dall'albero AVL univocamente determinato da nicknameInt */
 AlberoAVL *alberoAVL_deleteNickname(AlberoAVL *T, int nicknameInt);
 AlberoAVL *deleteRoot(AlberoAVL *T);
 AlberoAVL *staccaMinimo(AlberoAVL *T, AlberoAVL *P);
-//distruggi
-AlberoAVL *deleteTreeAVL(AlberoAVL *T);
-//stampa
-void printTree(AlberoAVL *T);
-//ricerca
+/* Ricerca un nodo nell'albero AVL unicovamente determinato da nicknameInt */
 bool alberoAVL_nicknameExists(AlberoAVL *T, int nicknameInt);
+
+/* Distrugge un albero AVL con radice T */
+AlberoAVL *deleteTreeAVL(AlberoAVL *T);
+/* Stampa contenuto albero AVL post order */
+void printTree(AlberoAVL *T);
