@@ -1,73 +1,10 @@
 #include "server.h"
 
-/* Imposta la connessione per il server. Restituisce 0 se è OK, -1 altrimenti. */
-int setupConnection(unsigned short int port, int lunghezza_coda)
-{
-    int socketfd, checkerror;
-    struct sockaddr_in indirizzo;
 
-    socketfd = socket(PF_INET, SOCK_STREAM, 0);
-    if(socketfd == -1) return -1;
+/*=======================================================================*\
+                            OPERAZIONI QUEUE
+\*=======================================================================*/ 
 
-    indirizzo.sin_family = AF_INET;
-    indirizzo.sin_port = htons(port);
-    indirizzo.sin_addr.s_addr = htonl(INADDR_ANY);
-    memset(&(indirizzo.sin_zero), '\0', 8);
-
-    checkerror = bind(socketfd, (struct sockaddr*)&indirizzo, sizeof(indirizzo));
-    if(checkerror == -1) return -1;
-
-    checkerror = listen(socketfd, lunghezza_coda);
-    if(checkerror == -1) return -1;
-
-    return socketfd;
-}
-
-/* ----------------------- OPERAZIONI LISTA NICKNAMES ---------------------- */
-/* Inizializza l'albero AVL di nicknames dei clients presenti sul server. Restituisce 0 se è OK, codice di errore altrimenti.*/
-int initAVLNicknames(AVLNicknames *T, pthread_mutexattr_t *restrict attr)
-{
-    if(T == NULL){
-        fprintf(stderr, "Memoria AVL nicknames non allocata initAVLNicknames()\n");
-        return 1;
-    }
-
-    int checkerror = 0; // variabile per controllo errori
-
-    // Inizializzazione mutex AVLNicknames
-    T->mutex = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
-    if(T->mutex == NULL){
-        fprintf(stderr, "Errore allocazione memoria mutex initAVLNicknames()\n");
-        return 1;
-    }
-    if((checkerror = pthread_mutex_init(T->mutex, attr)) != 0){
-        return checkerror;
-    }
-
-    T->numeroClientsServer = 0;
-    return 0;
-}
-
-/* Distrugge l'albero AVL di nicknames dei clients presenti sul server. Restituisce 0 se è OK, codice di errore altrimenti. */
-int destroyAVLNicknames(AVLNicknames *T)
-{
-    if(T == NULL) return 0;
-
-    int checkerror; // variabile per controllo errori
-
-    T->root = deleteTreeAVL(T->root);
-
-    if((checkerror = pthread_mutex_destroy(T->mutex)) != 0){
-        return checkerror;
-    }
-    free(T->mutex);
-
-    return 0;
-}
-/* ------------------------------------------------------------------------- */
-
-
-/* --------------------------- OPERAZIONI QUEUE --------------------------- */
 /* Accoda un client nella coda Q */
 void enqueue(Queue *Q, Client *client)
 {
@@ -164,239 +101,132 @@ void destroyQueue(Queue *Q, nodoQueue *head)
     }
 }
 
-/* Funzione ricorsiva: cerca e restituisce (se esiste, restituisce NULL altrimenti) una coppia di client dalla coda 'Q' che rispetta determinate condizioni.
-Implementa il servizio richiesto dalla traccia del progetto, cioè un client non può essere assegnato ad una medesima controparte nella stessa stanza
-in due assegnazioni consecutive.
-Parametri di input:
-- Q è la coda;
-- actual: rappresenta il nodo attualmente esaminato dalla funzione ricorsiva;
-- actualprev: rappresenta il nodo precedente ad 'actual';
-- head: rappresenta il nodo che contiene il client per cui stiamo cercando un altro client per la chat;
-- headprev: rappresenta il nodo precedente ad 'headprev'.*/
-Match *searchCouple(Queue *Q, nodoQueue *actual, nodoQueue *actualprev, nodoQueue *head, nodoQueue *headprev)
+/*   Cerca e restituisce (se esiste, restituisce NULL altrimenti) una coppia di client dalla coda 'Q' che 
+*    rispetta determinate condizioni. Implementa la funzionalità richiesta dalla traccia del progetto, cioè 
+*    un client non può essere assegnato ad una medesima controparte nella stessa stanza in due assegnazioni consecutive.
+*    Parametri di input:
+*    > Q è la coda della stanza e Q->head rappresenta il nodo in testa alla coda;
+*    > actual: rappresenta il nodo attualmente esaminato dalla funzione ricorsiva;
+*    > actualprev: rappresenta il nodo precedente ad 'actual'; */                       
+Match *findPairClientsFromQueue(Queue *Q, nodoQueue *actual, nodoQueue *actualprev)
 {
-    Match *matchFound = NULL;
-    if(actual != NULL && Q->numeroClients >= 2) // Se non siamo arrivati alla fine della coda Q e il numero di client nella coda Q è almeno 2
+    Match *coupleClients = NULL;
+    if(actual != NULL && Q->numeroClients >= 2)
     {
-        int actualRoomID = head->client->actualRoomID; // ID Stanza attuale
+        int currentRoom = Q->head->client->currentRoom;
 
-        // cond_a == 1 sse l'id della stanza attuale è uguale all'id della stanza dell'ultimo match di 'actual->client'
-        int cond_a = (actualRoomID == actual->client->matchedRoomID);
-        // cond_b == 1 sse l'id della stanza attuale è uguale all'id della stanza dell'ultimo match di 'head->client'
-        int cond_b = (actualRoomID == head->client->matchedRoomID);
-        // cond_c == 1 sse l'indirizzo dell'ultimo client con cui si è collegato 'head->client' è uguale all'indirizzo di 'actual->client'
-        int cond_c = !strncmp(head->client->matchedAddress, actual->client->address, 15);
-        // cond_d == 1 sse l'indirizzo dell'ultimo client con cui si è collegato 'actual->client' è uguale all'indirizzo di 'head->client'
-        int cond_d = !strncmp(head->client->address, actual->client->matchedAddress, 15);
+        int CurrentRoomEqualsMatchedRoom_Client1 = (currentRoom == actual->client->matchedRoom);
+        int CurrentRoomEqualsMatchedRoom_Client2 = (currentRoom == Q->head->client->matchedRoom);
+        int AddressClient1EqualsMatchedAddressClient2 = !strncmp(Q->head->client->matchedAddress, actual->client->address, 15);
+        int AddressEqualsClient2MatchedAddressClient1 = !strncmp(Q->head->client->address, actual->client->matchedAddress, 15);
 
-        if(cond_a && cond_b && (cond_c || cond_d)) // Coppia non valida
+        if( CurrentRoomEqualsMatchedRoom_Client1 && CurrentRoomEqualsMatchedRoom_Client2 &&
+            ( AddressClient1EqualsMatchedAddressClient2 || AddressEqualsClient2MatchedAddressClient1) ) // Coppia non valida
         {
-            matchFound = searchCouple(Q, actual->next, actual, head, headprev);
+            coupleClients = findPairClientsFromQueue(Q, actual->next, actual);
         }
         else // Coppia valida
         {
-            matchFound = (Match*)malloc(sizeof(matchFound));
-            if(matchFound == NULL)
-                fprintf(stderr,"Errore allocazione match searchCouple()");
+            coupleClients = (Match*)malloc(sizeof(coupleClients));
+            if(coupleClients == NULL){
+                fprintf(stderr,"Errore allocazione match findPairClientsFromQueue()");
+                return NULL;
+            }
 
             nodoQueue *temp;
 
             /* Estrazione ed eliminazione 'actual->client' dalla coda Q (couplantClient1) */
-            matchFound->couplantClient1 = actual->client;
+            coupleClients->couplantClient1 = actual->client;
             temp = actual;
             actual = actual->next;
             actualprev->next = actual;
             free(temp);
 
             if(actual == NULL) // Se è vero, è stato appena eliminato l'ultimo l'elemento dalla coda Q
-                Q->tail = actualprev; // -> aggiornamento puntatore 'Q->tail' della coda Q
+                Q->tail = actualprev;
 
             /* Estrazione ed eliminazione 'head->client' dalla coda (couplantClient2) */
-            matchFound->couplantClient2 = head->client;
-            temp = head;
-            head = head->next;
+            coupleClients->couplantClient2 = Q->head->client;
+            temp = Q->head;
+            Q->head = Q->head->next;
             free(temp);
-
-            if(headprev != NULL) // Se 'head' non è l'elemento in testa alla coda Q (cioè diverso da 'Q->head')
-                headprev->next = head; // -> aggiornamento puntatore 'next' di 'headprev'
-             else // Se 'head' è l'elemento in testa alla coda Q (cioè uguale a 'Q->head')
-                Q->head = head; // -> aggiornamento puntatore 'Q->head' della coda Q
-
-            if(head == NULL && Q->head != NULL) // Se è vero, è stato di nuovo eliminato l'ultimo l'elemento dalla coda
-                Q->tail = headprev; // -> aggiornamento puntatore 'Q->tail' della coda Q
 
             Q->numeroClients -= 2;
             if(Q->numeroClients == 0){Q->head = NULL, Q->tail = NULL;}
         }
     }
-    return matchFound;
+    return coupleClients;
 }
-/* ------------------------------------------------------------------------ */
 
 
-/* ------------------------- OPERAZIONI SULLE ROOM ------------------------ */
-/* Definisce i nomi delle stanze del server. */
-void setRoomName(char **roomName)
+
+/*=======================================================================*\
+                            OPERAZIONI ROOMS
+\*=======================================================================*/ 
+
+void destroyRoom(void *arg)
 {
-    roomName[0] = "Food Room\n";
-    roomName[1] = "Music Room\n";
-    roomName[2] = "Sports Room\n";
-    roomName[3] = "Nerd Room\n";
-    roomName[4] = "Business Room\n";
+    if(arg != NULL)
+    {
+        Room *Stanza = (Room*)arg;
+        destroyQueue(Stanza->coda, Stanza->coda->head);
+        safe_pthread_mutex_destroy(Stanza->mutex, "Errore pthreadmutexdestroy destroyRoom");
+        safe_pthread_cond_destroy(Stanza->cond, "Errore pthreadconddestroy destroyRoom");
+
+        free(Stanza->coda);
+        free(Stanza->mutex);
+        free(Stanza->cond);
+    }
+    
 }
 
-/* Inizializza una stanza. Restituisce 0 in caso di successo, codice di errore altrimenti. */
-int initRoom(Room *Stanza, int idRoom, char *nameRoom, int maxClients, int numClients, pthread_mutexattr_t *restrict attr)
-{
-    if(Stanza == NULL){ // Errore: non è stata allocata la memoria
-        fprintf(stderr, "Errore initRoom variabile stanza uguale a NULL");
-        return 1;
-    }
-
-    int checkerror = 0; // variabile per controllo errori
-
-    // Inizializzazione dati stanza
-    Stanza->idRoom = idRoom;
-    Stanza->maxClients = maxClients;
-    Stanza->numClients = numClients;
-    memset(Stanza->roomName, '\0', sizeof(Stanza->roomName));
-    strncpy(Stanza->roomName, nameRoom, 16);
-
-    // Inizializzazione coda stanza
-    Stanza->Q = (Queue*)malloc(sizeof(Queue));
-    if(Stanza->Q == NULL){
-        fprintf(stderr, "Errore allocazione queue initRoom()\n");
-        return 1;
-    }
-
-    Stanza->Q->numeroClients = 0;
-
-    // Inizializzazione mutex e cond stanza
-    Stanza->mutex = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
-    if(Stanza->mutex == NULL){
-        fprintf(stderr, "Errore allocazione memoria mutex initRoom()\n");
-        return 1;
-    }
-
-    if((checkerror = pthread_mutex_init(Stanza->mutex, attr)) != 0){
-        return checkerror;
-    }
-
-    Stanza->cond = (pthread_cond_t*)malloc(sizeof(pthread_cond_t));
-    if(Stanza->cond == NULL){
-        fprintf(stderr, "Errore allocazione memoria cond initRoom()\n");
-        return 1;
-    }
-
-    if((checkerror = pthread_cond_init(Stanza->cond, NULL)) != 0){
-        return checkerror;
-    }
-
-    return 0;
-}
-
-/* Distrugge una stanza. Restituisce 0 in caso di successo, codice di errore altrimenti.*/
-int destroyRoom(Room *Stanza)
-{
-    if(Stanza == NULL)
-        return 0;
-
-    int checkerror = 0; // variabile per controllo errori
-
-    destroyQueue(Stanza->Q, Stanza->Q->head);
-    free(Stanza->Q);
-
-    if((checkerror = pthread_mutex_destroy(Stanza->mutex)) != 0){
-        return checkerror;
-    }
-    free(Stanza->mutex);
-
-    if((checkerror = pthread_cond_destroy(Stanza->cond)) != 0){
-        return checkerror;
-    }
-    free(Stanza->cond);
-
-    return 0;
-}
-/* ------------------------------------------------------------------------ */
 
 
-/* ------------------------ OPERAZIONI SUI CLIENTS ------------------------ */
+/*=======================================================================*\
+                            OPERAZIONI CLIENTS
+\*=======================================================================*/ 
+
 /* Inizializza i dati di un client. Restituisce 0 se è OK, codice di errore altrimenti. */
-int initClient(Client *newClient, int socketClient, char *indirizzo, pthread_mutexattr_t *restrict attr)
+void initClient(Client *newClient, int socketClient, char *indirizzo, pthread_mutexattr_t *restrict attr)
 {
-    if(newClient == NULL){
-        fprintf(stderr, "Memoria client non allocata initClient()\n");
-        return 1;
-    }
-
-    int checkerror; // variabile per controllo errori
-
     // STATO INIZIALE CLIENT
-    memset(newClient, 0, sizeof(Client));
-    newClient->socketfd = socketClient; // socket file descriptor client 
-    strncpy(newClient->address, indirizzo, 15); // indirizzo client
-    newClient->isConnected = true; // è connesso
-    newClient->isMatched = false; // non è matchato con nessun client 
-    newClient->deletedFromQueue = false; // non è stato cancellato dalla coda
-    newClient->stopWaiting = false; // non ha interrotto l'attesa (client appena creato)
-    newClient->chatTimedout = false; // la chat non è andata in timedout (client appena creato)
-    newClient->actualRoomID = -1; // non appartiene a nessuna stanza (client appena creato)
-    newClient->matchedRoomID = -1; // non è stato matchato in nessuna stanza (client appena creato)
+    newClient->socketfd = socketClient; 
+    strncpy(newClient->address, indirizzo, 15); 
+    newClient->isConnected = true; 
+    newClient->isMatched = false; 
+    newClient->deletedFromQueue = false; 
+    newClient->stopWaiting = false; 
+    newClient->chatTimedout = false; 
+    newClient->currentRoom = -1; 
+    newClient->matchedRoom = -1; 
 
-    // Inizializzazione mutex e cond client
-    newClient->mutex = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
-    if(newClient->mutex == NULL){
-        fprintf(stderr, "Errore allocazione memoria mutex initClient()\n");
-        return 1;
-    }
+    if(newClient->mutex == NULL) fprintf(stderr,"ciao\n");
 
-    if((checkerror = pthread_mutex_init(newClient->mutex, attr)) != 0){
-        return checkerror;
-    }
-
-    newClient->cond = (pthread_cond_t*)malloc(sizeof(pthread_cond_t));
-    if(newClient->cond == NULL){
-        fprintf(stderr, "Errore allocazione memoria cond initClient()\n");
-        return 1;
-    }
-
-    if((checkerror = pthread_cond_init(newClient->cond, NULL)) != 0){
-        return checkerror;
-    }
-
-    return 0;
+    safe_pthread_mutex_init(newClient->mutex, attr, "Errore pthreadmutexinit initClient");
+    safe_pthread_cond_init(newClient->cond, NULL, "Errore pthreadcondinit initClient");
 }
 
-/* Distrugge una client. Restituisce 0 in caso di successo, codice di errore altrimenti.*/
-int destroyClient(Client *client)
+/* Distrugge una client. */
+void destroyClient(void *arg)
 {
-    if(client == NULL)
-        return 0;
-
-    int checkerror = 0; // variabile per controllo errori
-
-    if((checkerror = close(client->socketfd)) != 0){
-        fprintf(stderr, "Errore chiusura socketfd %d destroyClient()\n", client->socketfd);
-        return checkerror;
+    if(arg != NULL)
+    {
+        Client *client = (Client*)arg;
+        fprintf(stderr, "Chiusura client %s nickname %s\n", client->address, client->nickname);
+        safe_close(client->socketfd, "Errore chiusura socketfd destroyClient()");
+        safe_pthread_mutex_destroy(client->mutex, "Errore pthread_mutex_destroy destroyClient()");
+        safe_pthread_cond_destroy(client->cond, "Errore pthread_cond_destroy destroyClient()");
+        free(client->mutex);
+        free(client->cond);
+        free(client);
     }
-    if((checkerror = pthread_mutex_destroy(client->mutex)) != 0){
-        return checkerror;
-    }
-    free(client->mutex);
-
-    if((checkerror = pthread_cond_destroy(client->cond)) != 0){
-        return checkerror;
-    }
-    free(client->cond);
-    free(client);
-
-    return 0;
 }
-/* ------------------------------------------------------------------------ */
 
 
-/* ------------------------ OPERAZIONI INPUT/OUTPUT ------------------------ */
+
+/*=======================================================================*\
+                            OPERAZIONI I/O
+\*=======================================================================*/
 ssize_t safeRead(int fd, void *buf, size_t count)
 {
     size_t bytesDaLeggere = count;
@@ -451,19 +281,74 @@ void impostaTimerSocket(int socketfd, int seconds)
     }
 }
 
-/* Funzione controllo errori con strerror */
-void check_strerror(int valueToCheck, const char *s, int successValue){
-    if(valueToCheck != successValue){
-        fprintf(stderr, "%s: %s\n", s, strerror(valueToCheck));
-        exit(EXIT_FAILURE);
+void write_to_client(Client *C, void *buf, size_t count, int error_handling_mode, const char* errorMsg)
+{
+    long unsigned int bytes = 0;
+
+    bytes = safeWrite(C->socketfd, buf, count);
+    if(bytes != count)
+    {
+        if(errno != EINTR)
+        {
+            perror(errorMsg);
+            fprintf(stderr, "Address Client: %s\n", C->address);
+            C->isConnected = false;
+
+            if(error_handling_mode == EXIT_ON_ERROR)
+                pthread_cancel(pthread_self()),
+                fprintf(stderr,"\n");
+        }
     }
 }
 
-/* Funzione controllo errori con perror */
-void check_perror(int valueToCheck, const char *s, int unsuccessValue){
-    if(valueToCheck == unsuccessValue){
-        perror(s);
-        exit(EXIT_FAILURE);
+void read_from_client(Client *C, void *buf, size_t count, int error_handling_mode, const char* errorMsg)
+{
+    long unsigned int bytes = 0;
+
+    bytes = safeRead(C->socketfd, buf, count);
+    if(bytes != count)
+    {
+        if(errno != EINTR)
+        {
+            perror(errorMsg);
+            fprintf(stderr, "Address Client: %s\n", C->address);
+            C->isConnected = false;
+
+            if(error_handling_mode == EXIT_ON_ERROR)
+                pthread_cancel(pthread_self()),
+                fprintf(stderr,"\n");
+        }
     }
 }
-/* ------------------------------------------------------------------------- */
+
+/* Imposta la connessione per il server. Restituisce 0 se è OK, -1 altrimenti. */
+int setupConnection(unsigned short int port, int lunghezza_coda)
+{
+    int socketfd, checkerror;
+    struct sockaddr_in indirizzo;
+
+    socketfd = socket(PF_INET, SOCK_STREAM, 0);
+    if(socketfd == -1)
+        perror("Errore creazione socket"),
+        pthread_cancel(pthread_self()),
+        fprintf(stderr,"\n");
+
+    indirizzo.sin_family = AF_INET;
+    indirizzo.sin_port = htons(port);
+    indirizzo.sin_addr.s_addr = htonl(INADDR_ANY);
+    memset(&(indirizzo.sin_zero), '\0', 8);
+
+    checkerror = bind(socketfd, (struct sockaddr*)&indirizzo, sizeof(indirizzo));
+    if(checkerror == -1)
+        perror("Errore bind socket"),
+        pthread_cancel(pthread_self()),
+        fprintf(stderr,"\n");
+
+    checkerror = listen(socketfd, lunghezza_coda);
+    if(checkerror == -1)
+        perror("Errore bind socket"),
+        pthread_cancel(pthread_self()),
+        fprintf(stderr,"\n");
+
+    return socketfd;
+}

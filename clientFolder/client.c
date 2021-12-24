@@ -1,5 +1,9 @@
 #include "client.h"
 
+
+/*=======================================================================*\
+                            CONTROLLO ERRORI
+\*=======================================================================*/ 
 /* Funzioni controllo errori con perror */
 void check_perror(int valueToCheck, const char *s, int unsuccessValue){
     if(valueToCheck == unsuccessValue){
@@ -14,6 +18,26 @@ void check_strerror(int valueToCheck, const char *s, int successValue){
         fprintf(stderr, "%s: %s\n", s, strerror(valueToCheck));
         exit(EXIT_FAILURE);
     }
+}
+
+/*=======================================================================*\
+                            OPERAZIONI I/O
+\*=======================================================================*/ 
+/* Setup connection and connect */
+int setupConnectionAndConnect(struct sockaddr_in indirizzo, unsigned short int port)
+{
+    int socketfd, checkerror;
+
+    indirizzo.sin_family = AF_INET;
+    indirizzo.sin_port = htons(port);
+
+    socketfd = socket(PF_INET, SOCK_STREAM, 0);
+    check_perror(socketfd, "Errore socket()", -1);
+
+    checkerror = connect(socketfd, (struct sockaddr*)&indirizzo, sizeof(indirizzo));
+    check_perror(checkerror, "Errore connect()", -1);
+
+    return socketfd;
 }
 
 /* Funzioni lettura completa e safe */
@@ -59,33 +83,35 @@ ssize_t safeWrite(int fd, const void *buf, size_t count)
     return (count - bytesDaScrivere);
 }
 
-/* Funzione di avvio thread: controlla se il client digita 'STOP' per interrompere l'attesa */
-void* checkStopWaiting(void *arg)
+/* Scrive esattamente count bytes al server */
+void write_to_server(int socketfd, void *buf, size_t count, const char *errorMsg)
 {
-    int socketfd = *((int*)arg);
-    ssize_t bytesScritti = 0;
-    size_t buffersize = 16;
-    char *buffer = (char*)malloc(sizeof(char)*16);
-    if(buffer == NULL) fprintf(stderr,"Errore allocazione memoria buffer checkStopWaiting\n");
+    long unsigned int bytes = 0;
 
-    // stdin
-    do{
-        memset(buffer, '\0', 16);
-        getline(&buffer, &buffersize, stdin);
-    }while((strncmp(buffer, "STOP\n", buffersize) != 0));
-
-    /* Invia 'ST' al server per interrompere l'attesa */
-    fprintf(stderr, "Invio messaggio d'interruzione al server: interruzione attesa.\n");
-    bytesScritti = safeWrite(socketfd, "ST", 2);
-    if(bytesScritti != 2){
-        fprintf(stderr, "Errore scrittura STOP.\n");
+    bytes = safeWrite(socketfd, buf, count);
+    if(bytes != count)
+    {
+        close(socketfd);
+        perror(errorMsg);
+        exit(EXIT_FAILURE);
     }
-
-    free(buffer);
-
-    return NULL;
 }
 
+/* Legge esattamente count bytes dal server */
+void read_from_server(int socketfd, void *buf, size_t count, const char *errorMsg)
+{
+    long unsigned int bytes = 0;
+
+    bytes = safeRead(socketfd, buf, count);
+    if(bytes != count)
+    {
+        close(socketfd);
+        perror(errorMsg);
+        exit(EXIT_FAILURE);
+    }
+}
+
+/* Costruisce il messaggio prima di inviarlo */
 void buildMessageChat(char *output, char *messaggio, char *nickname){
     memset(output, '\0', 1024);
     char buffer[2] = ": ";
@@ -94,7 +120,9 @@ void buildMessageChat(char *output, char *messaggio, char *nickname){
     strncat(output, messaggio, 1006);
 }
 
-/* FUNZIONI UI - USER INTERFACE*/
+/*=======================================================================*\
+                        FUNZIONI USER INTERFACE
+\*=======================================================================*/ 
 /* Stampa un carattere 'count' volte */
 void stampaCarattere(int carattere, int count)
 {
@@ -105,13 +133,13 @@ void stampaCarattere(int carattere, int count)
 }
 
 /* Stampa le stanze */
-void stampaStanze(Room stanze[], int max)
+void stampaStanzeUI(Room stanze[], int max)
 {
     int len;
     for(int i=0; i<max; i++)
     {
         printf("%c", 124);
-        stampaCarattere(35, 17);
+        stampaCarattere(61, 17);
         printf("%c", 124);
         printf("\n");
 
@@ -121,7 +149,7 @@ void stampaStanze(Room stanze[], int max)
         printf("\n");
 
         printf("%c", 124);
-        stampaCarattere(35, 17); // =
+        stampaCarattere(61, 17);
         printf("%c", 124);
         printf("\n");
 
@@ -135,20 +163,21 @@ void stampaStanze(Room stanze[], int max)
         printf("\n");
 
         printf("%c ", 124);
-        printf("> Clients: %d%c%d", stanze[i].numClients, 124, stanze[i].maxClients);
+        printf("> Clients: %d%c%d", stanze[i].numeroClients, 124, stanze[i].maxClients);
         stampaCarattere(32, 1);
         printf(" %c", 124);
         printf("\n");
 
         printf("%c", 124);
-        stampaCarattere(35, 17);
+        stampaCarattere(61, 17);
         printf("%c", 124);
         
         printf("\n\n");
     }
 }
 
-void menuPrincipale(char *nickname)
+/* Stampa Menu Principale */
+void menuPrincipaleUI(char *nickname)
 {
     stampaCarattere(61, 45); 
     printf("\n");
@@ -211,6 +240,7 @@ void menuPrincipale(char *nickname)
 	printf("(20 secondi prima che la connessione venga chiusa)\n");
 }
 
+/* Messaggio inizio chat avviata */
 void chatStartUI(char *nickname)
 {
     printf("\n");

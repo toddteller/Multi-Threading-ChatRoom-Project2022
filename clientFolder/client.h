@@ -18,32 +18,37 @@
 /* Stanza generica del server */
 typedef struct{
     char roomName[16];
-    int maxClients; // max numero clients
-    int numClients; // numero clients attuali
+    int maxClients; 
+    int numeroClients; 
 } Room;
 
+
+/*=======================================================================*\
+                            CONTROLLO ERRORI
+\*=======================================================================*/ 
 /* Funzioni controllo errori con perror */
-void check_perror(int valueToCheck, const char *s, int unsuccessValue); //socket
+void check_perror(int valueToCheck, const char *s, int unsuccessValue);
 /* Funzione controllo errori con strerror */
 void check_strerror(int valueToCheck, const char *s, int successValue);
-/* Funzioni lettura e scrittura completa e safe */
+
+
+/*=======================================================================*\
+                            OPERAZIONI I/O
+\*=======================================================================*/ 
 ssize_t safeRead(int fd, void *buf, size_t count);
 ssize_t safeWrite(int fd, const void *buf, size_t count);
-
-/* Funzione di avvio thread: controlla se il client digita 'STOP' per interrompere l'attesa */
-void* checkStopWaiting(void *arg);
-
-/* Costruisce il messaggio prima di inviarlo */
-void buildMessageChat(char *output, char *messaggio, char *nickname);
-/* Pulisce STDIN_FILENO */
+int setupConnectionAndConnect(struct sockaddr_in indirizzo, unsigned short int port);
+void write_to_server(int socketfd, void *buf, size_t count, const char *errorMsg);
+void read_from_server(int socketfd, void *buf, size_t count, const char *errorMsg);
 void cleanSTDIN();
+void buildMessageChat(char *output, char *messaggio, char *nickname);
 
-/* FUNZIONI UI - USER INTERFACE*/
-/* Stampa un carattere 'count' volte */
+
+/*=======================================================================*\
+                        FUNZIONI USER INTERFACE
+\*=======================================================================*/ 
 void stampaCarattere(int carattere, int count);
-/* Stampa le stanze prelevate */
-void stampaStanze(Room stanze[], int max);
-/* Stampa menu principale */
-void menuPrincipale(char *nickname);
-/* Messaggio inizio chat avviata */
+void stampaStanzeUI(Room stanze[], int max);
+void menuPrincipaleUI(char *nickname);
 void chatStartUI(char *nickname);
+
