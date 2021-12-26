@@ -58,6 +58,7 @@ nodoQueue *deleteNodeQueue(Queue *Q, nodoQueue *head, nodoQueue *prev, char *nic
     {
         if(strncmp(nickname, head->client->nickname, 16) == 0){
             if(head == Q->tail) Q->tail = prev;
+            fprintf(stderr,"ELIMINATO\n");
             nodoQueue *tmp;
             tmp = head;
             head = head->next;
@@ -118,10 +119,10 @@ Match *findPairClientsFromQueue(Queue *Q, nodoQueue *actual, nodoQueue *actualpr
         int CurrentRoomEqualsMatchedRoom_Client1 = (currentRoom == actual->client->matchedRoom);
         int CurrentRoomEqualsMatchedRoom_Client2 = (currentRoom == Q->head->client->matchedRoom);
         int AddressClient1EqualsMatchedAddressClient2 = !strncmp(Q->head->client->matchedAddress, actual->client->address, 15);
-        int AddressEqualsClient2MatchedAddressClient1 = !strncmp(Q->head->client->address, actual->client->matchedAddress, 15);
+        int AddressClient2EqualsMatchedAddressClient1 = !strncmp(Q->head->client->address, actual->client->matchedAddress, 15);
 
         if( CurrentRoomEqualsMatchedRoom_Client1 && CurrentRoomEqualsMatchedRoom_Client2 &&
-            ( AddressClient1EqualsMatchedAddressClient2 || AddressEqualsClient2MatchedAddressClient1) ) // Coppia non valida
+            ( AddressClient1EqualsMatchedAddressClient2 || AddressClient2EqualsMatchedAddressClient1) ) // Coppia non valida
         {
             coupleClients = findPairClientsFromQueue(Q, actual->next, actual);
         }

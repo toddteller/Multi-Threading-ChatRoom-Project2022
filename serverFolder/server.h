@@ -1,6 +1,21 @@
 #include "AVL.h"
 #include "safeFunction.h"
 
+/* Costanti generali */
+enum constant{
+    SERVER_OFF = 9,
+    SOCKET_ERROR = -1,
+    VISUALIZZA_STANZE = 1,
+    ESCI_DAL_SERVER = 2,
+    NO_ROOM = -1,
+    SELECT_TIMEDOUT = 0,
+    CHAT_TIMEDOUT = 4,
+    MAX_NUM_ROOMS = 5,
+    MAX_CLIENTS_PER_ROOM = 6,
+    SERVER_PORT = 9898,
+    SERVER_BACKLOG = 10,
+};
+
 /* Struttura CLIENT: contiene tutte le informazioni sul client necessarie */
 typedef struct{
     char nickname[16];
@@ -53,6 +68,7 @@ typedef struct{
     int numeroClientsServer;
     pthread_mutex_t *mutex;
 } AVLNicknames;
+
 
 
 /*=======================================================================*\

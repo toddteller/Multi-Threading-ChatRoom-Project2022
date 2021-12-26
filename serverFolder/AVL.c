@@ -9,8 +9,8 @@ AlberoAVL *alberoAVL_rotateSSX(AlberoAVL *T)
 	AlberoAVL *sx = T->sx;
 	T->sx = sx->dx;
 	sx->dx = T;
-	T->h = 1 + max(alberoAVL_altezza(T->sx),alberoAVL_altezza(T->dx));
-	sx->h = 1 + max(alberoAVL_altezza(sx->sx), alberoAVL_altezza(sx->dx));
+	T->altezza = 1 + max(alberoAVL_altezza(T->sx),alberoAVL_altezza(T->dx));
+	sx->altezza = 1 + max(alberoAVL_altezza(sx->sx), alberoAVL_altezza(sx->dx));
 	return sx;
 }
 
@@ -19,8 +19,8 @@ AlberoAVL *alberoAVL_rotateSDX(AlberoAVL *T)
 	AlberoAVL *dx = T->dx;
 	T->dx = dx->sx;
 	dx->sx = T;
-	T->h = 1 + max(alberoAVL_altezza(T->dx),alberoAVL_altezza(T->sx));
-	dx->h = 1 + max(alberoAVL_altezza(dx->dx), alberoAVL_altezza(dx->sx));
+	T->altezza = 1 + max(alberoAVL_altezza(T->dx),alberoAVL_altezza(T->sx));
+	dx->altezza = 1 + max(alberoAVL_altezza(dx->dx), alberoAVL_altezza(dx->sx));
 	return dx;
 }
 
@@ -66,7 +66,7 @@ AlberoAVL *alberoAVL_bilanciaSX(AlberoAVL *T)
 		}
 		else
 		{
-			T->h = 1 + max(alberoAVL_altezza(T->sx), alberoAVL_altezza(T->dx));
+			T->altezza = 1 + max(alberoAVL_altezza(T->sx), alberoAVL_altezza(T->dx));
 		}
 	}
 	return T;
@@ -90,7 +90,7 @@ AlberoAVL *alberoAVL_bilanciaDX(AlberoAVL *T)
 		}
 		else
 		{
-			T->h = 1 + max(alberoAVL_altezza(T->sx), alberoAVL_altezza(T->dx));
+			T->altezza = 1 + max(alberoAVL_altezza(T->sx), alberoAVL_altezza(T->dx));
 		}
 	}
 	return T;
@@ -112,7 +112,7 @@ AlberoAVL *alberoAVL_insertNickname(AlberoAVL *T, char *nickname, int uniqueNumb
 
 		strncpy(T->nickname, nickname, 16);
 		T->uniqueNumberNickname = uniqueNumberNickname;
-		T->h = 0;
+		T->altezza = 0;
 		T->sx = NULL;
 		T->dx = NULL;
 	}
@@ -283,6 +283,6 @@ int max(int a, int b)
 /* Restituisce l'alberoAVL_altezza di un albero AVL */
 int alberoAVL_altezza(AlberoAVL *T)
 {
-	if(T != NULL) return T->h;
+	if(T != NULL) return T->altezza;
 	else return -1;
 }

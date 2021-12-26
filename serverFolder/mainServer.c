@@ -1,20 +1,5 @@
 #include "server.h"
 
-/* Costanti generali */
-enum constant{
-    SERVER_OFF = 9,
-    SOCKET_ERROR = -1,
-    VISUALIZZA_STANZE = 1,
-    ESCI_DAL_SERVER = 2,
-    NO_ROOM = -1,
-    SELECT_TIMEDOUT = 0,
-    CHAT_TIMEDOUT = 4,
-    MAX_NUM_ROOMS = 5,
-    MAX_CLIENTS_PER_ROOM = 6,
-    SERVER_PORT = 9898,
-    SERVER_BACKLOG = 10,
-};
-
 /* Variabili globali server */
 AVLNicknames *alberoAVL_nicknameClients;        
 Room stanzeServer[MAX_NUM_ROOMS];   
@@ -34,7 +19,7 @@ void *checkChatTimedout(void *arg);
 
 int main(void)
 {
-    serverON = true; // Server ONLINE
+    serverON = true;
 
     /* Impostazione signal handler */
      // > SIGUSR1 usato per interrompere una chat aperta nel thread gestisciChat() dopo TOT secondi
@@ -398,7 +383,6 @@ void *gestisciClient(void *arg)
 
         inputEnteredClient = buffer[0] - '0'; 
 
-        /* Invia "OK" al client  */
         write_to_client(thisClient, "OK", 2, NOT_EXIT_ON_ERROR, "[7] Errore scrittura 'OK' client");
 
         if(!thisClient->isConnected) break;
@@ -511,7 +495,6 @@ void *gestisciClient(void *arg)
 
             if(!thisClient->isConnected) break;
 
-            /* Invia "OK" al client */
             write_to_client(thisClient, "OK", 2, NOT_EXIT_ON_ERROR, "[17] Errore scrittura 'OK' client");
 
             if(!thisClient->isConnected) break;
@@ -547,7 +530,6 @@ void *gestisciClient(void *arg)
 
             if(!thisClient->isConnected) break;
 
-            /* Invia "OK" al client */
             write_to_client(thisClient, "OK", 2, NOT_EXIT_ON_ERROR, "[20] Errore scrittura 'OK' client");
 
             if(!thisClient->isConnected) break;
@@ -583,7 +565,6 @@ void *gestisciClient(void *arg)
             }
             else 
             {
-                /* Invia "OK" al client */
                 write_to_client(thisClient, "OK", 2, NOT_EXIT_ON_ERROR, "[24] Errore scrittura 'OK' client");
 
                 if(!thisClient->isConnected) break;
@@ -623,13 +604,11 @@ void *gestisciClient(void *arg)
                     thisClient->chatTimedout = false;
                     thisClient->currentRoom = stanzeServer[STANZA_SCELTA_CLIENT].idRoom;
 
-                    /* WAKE UP gestisciRoom() stanza scelta */
                     safe_pthread_cond_signal(stanzeServer[STANZA_SCELTA_CLIENT].cond, "Errore condsignal stanzaServerQueue"); 
             
                     safe_pthread_mutex_unlock(stanzeServer[STANZA_SCELTA_CLIENT].mutex, "Errore mutexunlock stanzaServer");        
                     pthread_cleanup_pop(0);
 
-                    /* Il server mette in attesa questo thread (e il client) */
                     safe_pthread_mutex_lock((pthread_mutex_t*)thisClient->mutex, "Errore mutexlock Client");          
                     pthread_cleanup_push((void*)pthread_mutex_unlock, (void*)thisClient->mutex);
                     
@@ -701,15 +680,13 @@ void *gestisciClient(void *arg)
                         thisClient->stopWaiting = false; 
                         thisClient->deletedFromQueue = false;
                     }
-                    else 
+                    else /* Il client non si è disconnesso e non ha interrotto l'attesa */
                     {
-                        /* Invia al client "OK": chat avviata */
                         write_to_client(thisClient, "OK", 2, NOT_EXIT_ON_ERROR, "[27] Errore scrittura 'OK' client");
 
                         if(!thisClient->isConnected) break;
 
-                        /* Aspetta la terminazione del thread checkConnectionClient
-                          Il client dovrebbe inviare 'OK' per terminare il thread checkConnectionClient() */
+                        /* Terminazione del thread checkConnectionClient */
                         fprintf(stderr,"Aspetto thread checkConnectionClient client %s.\n", thisClient->nickname);
                         safe_pthread_join(tid, NULL, "[28] Errore pthread_join client");
 
@@ -717,7 +694,6 @@ void *gestisciClient(void *arg)
 
                         // WAKE UP Thread gestisciChat()
                         safe_pthread_cond_signal(thisClient->cond, "Errore condsignal client->chat");
-
 
                         safe_pthread_mutex_lock(thisClient->mutex, "Errore mutexlock Client");
                         pthread_cleanup_push((void*)pthread_mutex_unlock, (void*)thisClient->mutex);
@@ -738,7 +714,6 @@ void *gestisciClient(void *arg)
                         {
                             fprintf(stderr, "> Client %s ancora connesso.\n", thisClient->nickname);
 
-                            /* Invia "OK" al client */
                             write_to_client(thisClient, "OK", 2, NOT_EXIT_ON_ERROR, "[30] Errore scrittura 'OK' client");
 
                             if(!thisClient->isConnected) break;
@@ -815,8 +790,7 @@ void *checkConnectionClient(void *arg)
         fprintf(stderr, "Errore checkConnectionClient %s\n", thisClient->address),
         thisClient->isConnected = false; // Il client si è disconnesso
 
-    /* Letto "ST": il client deciso di interrompere l'attesa */
-    if(strncmp(buffer, "ST", 2) == 0)
+    if(strncmp(buffer, "ST", 2) == 0) /* Letto "ST": il client deciso di interrompere l'attesa */
         fprintf(stderr, "> Il client %s ha interrotto l'attesa.\n", thisClient->nickname),
         thisClient->stopWaiting = true;
 
@@ -857,6 +831,8 @@ void *gestisciChat(void *arg)
     /* Aggiorna info Client 1 e Client 2 */
     Client1->isMatched = true; 
     Client2->isMatched = true; 
+    memset(Client1->matchedAddress, '\0', sizeof(Client1->matchedAddress));
+    memset(Client2->matchedAddress, '\0', sizeof(Client1->matchedAddress));
     strncpy(Client1->matchedAddress, Client2->address, 15);
     strncpy(Client2->matchedAddress, Client1->address, 15);
 

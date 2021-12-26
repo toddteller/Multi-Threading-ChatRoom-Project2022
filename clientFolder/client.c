@@ -23,7 +23,6 @@ void check_strerror(int valueToCheck, const char *s, int successValue){
 /*=======================================================================*\
                             OPERAZIONI I/O
 \*=======================================================================*/ 
-/* Setup connection and connect */
 int setupConnectionAndConnect(struct sockaddr_in indirizzo, unsigned short int port)
 {
     int socketfd, checkerror;
@@ -32,10 +31,10 @@ int setupConnectionAndConnect(struct sockaddr_in indirizzo, unsigned short int p
     indirizzo.sin_port = htons(port);
 
     socketfd = socket(PF_INET, SOCK_STREAM, 0);
-    check_perror(socketfd, "Errore socket()", -1);
+    check_perror(socketfd, "Errore socket()", ERROR);
 
     checkerror = connect(socketfd, (struct sockaddr*)&indirizzo, sizeof(indirizzo));
-    check_perror(checkerror, "Errore connect()", -1);
+    check_perror(checkerror, "Errore connect()", ERROR);
 
     return socketfd;
 }
@@ -49,7 +48,7 @@ ssize_t safeRead(int fd, void *buf, size_t count)
     while(bytesDaLeggere > 0)
     {
         if((bytesLetti = read(fd, buf+(count-bytesDaLeggere), bytesDaLeggere)) < 0){
-            return -1;
+            return ERROR;
         }
         else if(bytesLetti == 0){
             break;
@@ -72,7 +71,7 @@ ssize_t safeWrite(int fd, const void *buf, size_t count)
     while(bytesDaScrivere > 0)
     {
         if((bytesScritti = write(fd, buf+(count-bytesDaScrivere), bytesDaScrivere)) < 0){
-            return -1;
+            return ERROR;
         }
         else{
             bytesDaScrivere -= bytesScritti;

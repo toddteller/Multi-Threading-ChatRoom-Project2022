@@ -15,6 +15,14 @@
 #include <pthread.h>
 #include <errno.h>
 
+/* Costanti generali */
+enum constant{
+    SELECT_TIMEDOUT = 0,
+    VISUALIZZA_STANZE = 1,
+    ESCI_DAL_SERVER = 2,
+    ERROR = -1,
+};
+
 /* Stanza generica del server */
 typedef struct{
     char roomName[16];

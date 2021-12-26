@@ -8,9 +8,9 @@
 typedef struct node{
 	struct node *sx;
 	struct node *dx;
-	int h; // altezza albero
-	char nickname[16]; // nickname client
-	int uniqueNumberNickname;  // somma caratteri nickname convertiti in intero 
+	int altezza; 
+	char nickname[16]; 
+	int uniqueNumberNickname;  
 } AlberoAVL;
 
 /*=======================================================================*\
